@@ -249,7 +249,7 @@ The frontend is a website where you can post and retrieve "quotes". The quotes a
 
 This system meant to be run in kubernetes and the repository already contains YAML-files. The system uses a postgres database running in a separate pod. To showcase the my implementations ability to provision database resources on cloud-providers i have replaced the postgres-database-pod, with an managed database running in a cloud provider, but besides that i have not changed overall architecture. 
 
-![](images/drawings_quote-setup-versions.png)
+<img src="images/drawings_quote-setup-versions.png" width="900" />
 
 This setup is supposed to represent an actual production ready application a small business may want to run on a cloud provider. The evaluation of this project will partially be based on how well the implementation managed to host/deploy/run this test application and what implications/challenges it may bring.
 
@@ -266,7 +266,8 @@ The main idea of this implementation is having a single cluster that works as an
 <!-- naming -->
 For the section I'll introduce two names: `core cluster` and `app cluster`. The `core cluster` is the control plane for managing your infrastructure and software environment. The `app clusters` is a shared term for all the clusters where business logic is supposed to run. For instance, a company may have two `app cluster`s in the form of a production cluster and a staging cluster. The `core cluster` that hosts all the shared services between different `app cluster` environments. 
 
-![](images/drawings_control-plane.png)
+<img src="images/drawings_control-plane.png" width="600" />
+
 > Figure X: An visualization/drawing of how SREs/The infrastructure team manage `app clusters` through the `core cluster`.
 
 Only the infrastructure teams is supposed to interact with `core cluster` directly - while the application developers are suppose to only care about getting there workload running on the `app cluster`s. 
@@ -274,7 +275,8 @@ Only the infrastructure teams is supposed to interact with `core cluster` direct
 <!-- intro to ArgoCD and crossplane -->
 The `core cluster` will use Crossplane for provisioning cloud resources and use ArgoCD to deploy and manage all services that running in the core cluster and the app clusters. Crossplane and ArgoCD are both open source tools funded by the CNCF. They are created as Control planes for Kubernetes and together they can be used to create a control for managing your whole multi-cloud multi-environment infrastructure. 
 
-![](images/drawings_resource-abstraction-layers.png)
+<img src="images/drawings_resource-abstraction-layers.png" width="700" />
+
 > Figure X: An visualization of how ArgoCD and Crossplane works together to provision cloud resources.
 
 ArgoCD handles all internal state, while Crossplane handles all external states - Combined can they be used as a universal control plane.
@@ -321,7 +323,9 @@ For this implementation a single instance of ArgoCD will run on the `core-cluste
 ArgoCD groups YAML-files/folders into an abstraction called _Applications_. Applications is just a normal kubernetes manifest, where you specify a path to a resource you want to deploy, a destination cluster, and some configuration parameters. You can structure (and nest) these groupings however you want, but you usually want smaller groupings, so you manage/sync them individually with more fine-grained control. e.g. Deploying Crossplane provisioned database separately from the Crossplane provisioned Kubernetes Cluster. This way you don't have to have use the same sync-policy for both groupings of resources. e.g. you may have pruning (auto-delete) disabled on the database, to ensure databases are not deleted by mistake. 
 
 Based on this philosophy of separation i have chosen to structure my applications like this:
-![](images/drawings_argo-apps.png)
+
+<img src="images/drawings_argo-apps.png" width="800" />
+
 > Figure X: An illustration of what packages/services ArgoCD installs and on which cluster.
 
 ### 7.2.1. Other applications/packages
@@ -550,7 +554,8 @@ On this example we can se how we specify the secret named, `gcp-database-conn`, 
 
 > Note: `argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true` is added to ensure that ArgoCD does not fail the deployment, because `Syncer` does not exist as custom resource at deployment time. This can happen when `Syncer`-manifest is *applied* before the `manifest-syncer` is deployed. ArgoCD will fix the failing resources with eventual consistency. 
 
-![](images/drawings_manifest-syncer.png)
+<img src="images/drawings_manifest-syncer.png" width="900" />
+
 > Figure X: A visualization of how credentials are generated and copied to the app clusters. 
 
 ### 7.4.1. Getting access to the App Clusters
@@ -569,12 +574,14 @@ In this setup I have two environments running: production and staging. Each envi
 
 This is proof of concept. This is paper is not arguing that this is good software architecture. 
 
-![](images/drawings_quote-setup.png)
+<img src="images/drawings_quote-setup.png" width="1200" />
 
 The production and staging environment runs completely separate on GCP. This project makes it possible to (in theoretically at least) scale the number of workload-environments to infinity through the `core-cluster` and _IaC_ based _GitOps_. 
 
 Crossplane does not have a UI, but you can interact with it with `kubectl` like any other kubernetes resource. Running `kubectl get managed` will print a list of all the resources managed by crossplane. The external resources used in this demo is showed blow.
-![](images/crossplane-print.png)
+
+<img src="images/crossplane-print.png" width="1000" />
+
 > Here we can see that two VPCs (`network.compute.gcp`), two subnets (`subnetwork.compute.gcp`), six DNS records (`resourcerecordset.dns.gcp`), two k8s clusters (`cluster.container.gcp`), and two node pools (`nodepool.container.gcp`) are running on GCP and a single database instance (`rdsinstance.database.aws`) is running on AWS.
 
 ## 8.1. Use in practice
@@ -608,7 +615,8 @@ _So how would the workflow be if a developer wants to create a new service with 
 
 Depending on the policy for this imaginary company it may be a person from the infrastructure team approving the provisioning of this new database, while it may be a person from the development team approving the normal app related kubernetes resources.
 
-![](images/drawings_repo-pr.png)
+<img src="images/drawings_repo-pr.png" width="800" />
+
 > Figure X: This image show how developer create/deploy new services with databases.
 
 ### 8.1.2. Deploying a new service version to the multiple cloud environments
@@ -621,7 +629,7 @@ Lets assume a developer team has a containerized service named: `service-a`. Whe
 
 When the changes has been tested on the staging cluster and the PR has been merged into master/main, then the same process begins. The only difference is that the build-pipeline this time updates the `/service-a/overlays/prod/` instead. 
 
-![](images/drawings_image-update.png)
+<img src="images/drawings_image-update.png" width="800" />
 
 The _Argo Project_ (the organization behind all Argo tools) does not provide any opinionated standardized way of pushing a new commit with the new image tag/version. This usually ends up with each organization/team makes their own custom code for doing commit push to the GitOps-synced repo. 
 
@@ -634,7 +642,7 @@ _So how would the workflow be if an infrastructure engineer wants to spin up the
 3. Add your Cloud Provider and Git-repo credentials to the `./creds/`-folder.
 4. Run `make start` in the root to start the interactive cli for choosing what resources to create.
 
-![](images/make1.png)
+<img src="images/make1.png" width="600" />
 
 This interactive-cli experience can be replaced with something else. e.g. it would be possible to replace the CLI with a simple UI if that is preferred. 
 
@@ -643,7 +651,7 @@ Other options can added relatively easily by adding scripts to the bootstrap-rep
 
 > choosing `local` is preferred when developing, since it takes around 10 minutes to spin up a GCP cluster and it only takes 20 sec to spin-up a local kind cluster.
 
-![](images/make2.png)
+<img src="images/make2.png" width="600" />
 
 You can either start everything up at once or start with `skip` and spin up whatever you need later. 
 
@@ -665,7 +673,7 @@ This section will discuss some of the challenges and limitations of this setup. 
 
 Switching to a GitOps workflow will not eliminate the need of pipelines. With the demonstrated setup you still need some kind of build-pipeline that runs whenever you have a new version of your app.
 
-![](./images/drawings_pipeline-types.png)
+<img src="images/drawings_pipeline-types.png" width="800" />
 
 Classic build/deploy pipelines with kubernetes consist of 3 steps: _build image_, _push image_, and _apply yaml changes_ to kubernetes. ArgoCD introduces a new step where the gitops-synced-repo is updated ( - there is no standardized way of updating this gitops-synced-repo, so it usually ends with custom script that pushes a new version to the repo). So with ArgoCD there is still 3 steps included in the pipeline: The last step is just replaced with updating a repo instead of apply yaml changes to the cluster directly.
 
