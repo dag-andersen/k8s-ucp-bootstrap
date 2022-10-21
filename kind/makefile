@@ -56,7 +56,7 @@ manual-apply-kube-apply-tracker:
 	kustomize build ../kube-apply-tracker/k8s/overlays/stage | kubectl apply -f -
 
 manual-argo-create-kube-apply-tracker:
-	argocd app create apply-tracker --sync-policy --repo https://github.com/dag-andersen/cloud-infra-deployment --path ../kube-apply-tracker/k8s/overlays/stage --dest-server https://kubernetes.default.svc --dest-namespace default
+	argocd app create apply-tracker --sync-policy --repo https://github.com/dag-andersen/k8s-ucp-app-gitops --path ../kube-apply-tracker/k8s/overlays/stage --dest-server https://kubernetes.default.svc --dest-namespace default
 
 
 # Linkerd --------
@@ -114,7 +114,7 @@ argo-bootstrap:
 
 argo-login:
 	argocd login localhost:8080 --insecure --username=admin --password=$$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo)
-	argocd repo add https://github.com/dag-andersen/cloud-infra-deployment --username dag-andersen --password $$(cat ../creds/creds-github.txt)
+	argocd repo add https://github.com/dag-andersen/k8s-ucp-app-gitops --username dag-andersen --password $$(cat ../creds/creds-github.txt)
 	export ARGOCD_OPTS='--port-forward-namespace argocd'
 
 argo-ui:
@@ -125,7 +125,7 @@ argo-ui:
 	@open https://localhost:8080
 
 argo-initial-app:
-	kubectl apply -f ../../cloud-infra-deployment/kube-app-bootstrap/$(env)/kube-applications.yml
+	kubectl apply -f ../../k8s-ucp-app-gitops/kube-app-bootstrap/$(env)/kube-applications.yml
 
 argo-workflow-setup:
 	kubectl create ns argo

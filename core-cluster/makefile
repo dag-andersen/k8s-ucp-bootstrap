@@ -90,13 +90,13 @@ argo-bootstrap-creds:
 	@kubectl apply -f ../creds/repo-creds.yml
 
 argo-bootstrap-core-%: context
-	@kubectl apply -f ../../k8s-core-infra/argo-bootstrap/$*
+	@kubectl apply -f ../../k8s-ucp-core-gitops/argo-bootstrap/$*
 
 argo-bootstrap-prod:
-	@kubectl apply -f ../../cloud-infra-deployment/argo-bootstrap/prod/bootstrap.yml
+	@kubectl apply -f ../../k8s-ucp-app-gitops/argo-bootstrap/prod/bootstrap.yml
 
 argo-bootstrap-stage:
-	@kubectl apply -f ../../cloud-infra-deployment/argo-bootstrap/stage/bootstrap.yml
+	@kubectl apply -f ../../k8s-ucp-app-gitops/argo-bootstrap/stage/bootstrap.yml
 
 argo-bootstrap-kind: context argo-bootstrap-creds argo-bootstrap-core-kind argo-bootstrap-prod argo-bootstrap-stage
 

@@ -25,7 +25,7 @@ argo-login: context
 	@echo "ArgoCD Login..."
 	kubectl port-forward svc/argocd-server --pod-running-timeout=10m0s -n argocd $(port):443 &>/dev/null &
 	@argocd login localhost:$(port) --insecure --username=admin --password=$$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo)
-	@argocd repo add https://github.com/dag-andersen/cloud-infra-deployment --username dag-andersen --password $$(cat ../creds/creds-github.txt)
+	@argocd repo add https://github.com/dag-andersen/k8s-ucp-app-gitops --username dag-andersen --password $$(cat ../creds/creds-github.txt)
 	@export ARGOCD_OPTS='--port-forward-namespace argocd'
 	@echo
 
@@ -45,11 +45,11 @@ argo-login-credentials: context
 	@echo "username: admin, password: $$(kubectl -n argocd --context $(cluster-name) get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo)"
 
 argo-app-bootstrap: context
-	kubectl apply --context $(cluster-name) -f /Users/dag/CodeProjects/cloud-infra-deployment/kube-app-bootstrap/$(env)/kube-applications.yml
+	kubectl apply --context $(cluster-name) -f /Users/dag/CodeProjects/k8s-ucp-app-gitops/kube-app-bootstrap/$(env)/kube-applications.yml
 	@echo
 
 argo-override: context
-	@kustomize build /Users/dag/CodeProjects/cloud-infra-deployment/kube-applications/overlays/prod | kubectl apply --context $(cluster-name) -f -
+	@kustomize build /Users/dag/CodeProjects/k8s-ucp-app-gitops/kube-applications/overlays/prod | kubectl apply --context $(cluster-name) -f -
 
 prometheus:
 	kubectl create namespace monitoring
