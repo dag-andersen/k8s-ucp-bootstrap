@@ -1,6 +1,6 @@
 # 1. Utilizing Kubernetes as an universal control plane
 <!-- 
-IMPORTANT LINK: https://blog.crossplane.io/crossplane-vs-cloud-infrastructure-addons/
+IMPORTANT LINK: https://blog.crossplane.io/crossplane-vs-k8s-ucp-bootstrapstructure-addons/
 IMPORTANT LINK: https://blog.crossplane.io/announcing-terrajet/
 https://faun.pub/how-to-build-a-gitops-workflow-with-argocd-kustomize-and-github-actions-f919e7443295
 

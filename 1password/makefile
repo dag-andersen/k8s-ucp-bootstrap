@@ -14,13 +14,11 @@ create-login-internal:
 		--url https://localhost/ \
 		--generate-password=20,letters,digits,symbols \
 		username=admin \
-		&>/dev/null
 
 update-argo-credentials:
 	@argocd account update-password \
 		--current-password=$$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo) \
 		--new-password=$$(op read op://Personal/ArgoLogin/password) \
-		&>/dev/null
 
 get-argo-credentials:
 	@echo "username: admin, password: $$(op read op://Personal/ArgoLogin/password)"
