@@ -356,10 +356,12 @@ The structure for this implementation split up in 3 repositories. One ArgoCD Syn
 
 ```
 root
-├── scripts-repo              # Bootstrapping scripts
-├── app-cluster-gitops-repo   # Only containing resources synced with Argo
-└── core-cluster-gitops-repo  # Only containing resources synced with Argo
+├── k8s-ucp-bootstrap         # Repository with bootstrapping scripts
+├── k8s-ucp-app-gitops        # Repository only containing app-cluster resources synced with ArgoCD
+└── k8s-ucp-core-gitops       # Repository only containing core-cluster resources synced with ArgoCD
 ```
+
+> `k8s-ucp` stands for _Kubernetes Universal Control Plane_.
 
 The GitOps synced repositories does not contain anything else than resources synced with ArgoCD. Only automated tools and scripts commit changes to the repositories. 
 
@@ -367,10 +369,10 @@ You could choose to store the `core-cluster` and `app-cluster` in the same repos
 
 ```
 root
-├── scripts-repo                # Bootstrapping scripts
-└── infrastructure-gitops-repo  
-    ├── app-cluster             # Only containing resources synced with Argo
-    └── core-cluster            # Only containing resources synced with Argo
+├── k8s-ucp-bootstrap           # Repository with bootstrapping scripts
+└── k8s-ucp-gitops              # Repository containing all ArgoCD synced Resources
+    ├── app-cluster
+    └── core-cluster
 ```
 
 On the other hand you may not want everyone in organization have read-access to all infrastructure. The write-access would not be a problem since you can e.g. use [`CODEOWNERS` on github](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners). 
@@ -379,12 +381,17 @@ The main point here is that there are many ways to structure your GitOps synced 
 
 Below we can see the folder structure of the `Core Cluster` and `App Cluster`. Most resource that is applied by ArgoCD is structured/built with Kustomize using the [base-overlay-pattern](https://github.com/kubernetes-sigs/kustomize/blob/53cc76fe43c91493d093c2832cc61425aa2972e1/README.md#2-create-variants-using-overlays), thus why we have all the `base` and `overlays` folders. 
 
+<table>
+<tr>
+<th> App Cluster Git Repo </th>
+<th> Core Cluster Git Repo </th>
+</tr>
+<tr>
+<td>
 
-
-**App Cluster Git Repo:**
 
 ```
-app-cluster-gitops-repo
+k8s-ucp-app-gitops
 ├── argo-bootstrap
 │   ├── prod
 │   └── stage
@@ -409,10 +416,11 @@ app-cluster-gitops-repo
         └── stage
 ```
 
-**Core Cluster Git Repo:**
+</td>
+<td>
 
 ```
-Core-Cluster
+k8s-ucp-core-gitops
 ├── projects            # Declaration of how Argo Applications are grouped
 ├── argo-bootstrap
 │   ├── gcp
@@ -444,6 +452,11 @@ Core-Cluster
         └── kind
 ```
 
+</td>
+</tr>
+</table>
+
+
 ## 7.3. Managing External State
 
 In this implementation I use crossplane for managing the external resources. Crossplane is a control plane that runs inside kubernetes that makes sure that the external resourced described in yaml is in sync with the state declared in kubernetes.
@@ -453,6 +466,15 @@ Here you can think about Terraform and the provider-integrations that exists. Th
 Currently Crossplane supports AWS, GCP and Azure as cloud providers. A DigitalOcean provider is also in active development [[source](https://www.digitalocean.com/blog/announcing-the-digitalocean-crossplane-provider)].
 
 As an example, in order to provision a resource on AWS you need to create a `Provider`, `ProviderConfig` and _the resource you want_. So if we want to provision a postgres database on AWS we apply the following configuration to kubernetes (with Crossplane installed):
+
+<table>
+<tr>
+<th> Provider Configs </th>
+<th> Provider Resources </th>
+</tr>
+<tr>
+<td>
+
 ```yml
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
@@ -474,6 +496,10 @@ spec:
       name: aws-creds
       key: creds
 ```
+
+</td>
+<td>
+
 ```yml
 apiVersion: database.aws.crossplane.io/v1beta1
 kind: RDSInstance
@@ -495,6 +521,10 @@ spec:
     namespace: crossplane-system
     name: aws-database-conn
 ```
+
+</td>
+</tr>
+</table>
 
 These yaml files are read by a _controller_ (which is provided by the crossplane-provider as a _helm-chart_). As a developer you do not care how it is implemented behind the scene, you just know that the controller continuously tries to make sure they desired state is upheld. 
 
