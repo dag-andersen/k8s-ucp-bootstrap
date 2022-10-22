@@ -243,19 +243,26 @@ Crossplane will be described in greater detail in the _Managing External State_-
 
 # 6. Test Application
 
-In order to test the implementation presented in the _Implementation_-section, I need a test application that run on the infrastructure and demonstrate its capabilities. 
+In order to test the universal control plane i am trying to build presented in the _Implementation_-section, I need a test application that run on the infrastructure and demonstrate its capabilities. 
 
 To do this i have used Eficode's, public `quotes-flask` application that they use for educational purposes. It is a simple application consists of a frontend, backend, and a database.
 
 The frontend is a website where you can post and retrieve "quotes". The quotes are posted and sent to the backend-service which then stores the data in postgres database.
 
-This system meant to be run in kubernetes and the repository already contains YAML-files. The system uses a postgres database running in a separate pod. To showcase the my implementations ability to provision database resources on cloud-providers i have replaced the postgres-database-pod, with an managed database running in a cloud provider, but besides that i have not changed overall architecture. 
+This system built to be run in kubernetes and the repository already contains YAML-files. The system uses a postgres database running in a standalone pod. To showcase the my implementation of an universal control plane's ability to provision database resources on cloud-providers i have replaced the postgres-database-pod, with a managed database running in a cloud provider. Besides that i have not changed overall architecture. 
 
-<img src="images/drawings_quote-setup-versions.png" width="900" />
+<img src="images/drawings_quote-setup-versions.png" width="800" />
 
-This setup is supposed to represent an actual production ready application a small business may want to run on a cloud provider. The evaluation of this project will partially be based on how well the implementation managed to host/deploy/run this test application and what implications/challenges it may bring.
+This setup is supposed to represent an actual production ready application a small business may want to run on a cloud provider.
 
-The Quote demo services in this setup exists in both a AWS version and GCP version, where each of them connects to a different cloud provider's postgres database service. This will be covered in greater detail in section `XXX` below. 
+The business may want multiple environments like _production_, _staging_ and _development_, and they may to leverage cloud services across multiple cloud providers. 
+Therefor the aim of the system is to look something like the image below.
+
+<img src="images/drawings_quote-setup-cloud-provider.png" width="600" />
+
+The architecture will demonstrate the universal controle plane's multi-cloud and multi-environment capabilities.
+
+The evaluation of this project will partially be based on how well the implemented universal control plane manages to host/deploy/run this test application and what implications/challenges it may bring.
 
 # 7. Implementation
 
@@ -586,7 +593,7 @@ On this example we can se how we specify the secret named, `gcp-database-conn`, 
 
 > Note: `argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true` is added to ensure that ArgoCD does not fail the deployment, because `Syncer` does not exist as custom resource at deployment time. This can happen when `Syncer`-manifest is *applied* before the `manifest-syncer` is deployed. ArgoCD will fix the failing resources with eventual consistency. 
 
-<img src="images/drawings_manifest-syncer.png" width="900" />
+<img src="images/drawings_manifest-syncer.png" width="750" />
 
 > Figure X: A visualization of how credentials are generated and copied to the app clusters. 
 
@@ -607,6 +614,8 @@ In this setup I have two environments running: production and staging. Each envi
 This is proof of concept. This is paper is not arguing that this is good software architecture. 
 
 <img src="images/drawings_quote-setup.png" width="1200" />
+
+<img src="images/drawings_quote-setup-cloud-provider-final.png" width="1000" />
 
 The production and staging environment runs completely separate on GCP. This project makes it possible to (in theoretically at least) scale the number of workload-environments to infinity through the `core-cluster` and _IaC_ based _GitOps_. 
 
