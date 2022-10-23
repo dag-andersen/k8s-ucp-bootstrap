@@ -38,12 +38,12 @@ A testing application will be described and used to demonstrate the unversial co
 - [4. Dictionary and abbreviations](#4-dictionary-and-abbreviations)
 - [5. Introduction](#5-introduction)
   - [5.1. Motivation](#51-motivation)
-  - [5.3. Declarative vs Imperative](#53-declarative-vs-imperative)
-    - [5.3.1. Terraform](#531-terraform)
-      - [5.3.1.1. Barrier of entry](#5311-barrier-of-entry)
-      - [5.3.1.2. Challenges with managing state](#5312-challenges-with-managing-state)
-      - [5.3.1.3. State automation](#5313-state-automation)
-      - [5.3.1.4. Crossplane as an alternative](#5314-crossplane-as-an-alternative)
+  - [5.2. Declarative vs Imperative](#52-declarative-vs-imperative)
+    - [5.2.1. Terraform](#521-terraform)
+      - [5.2.1.1. Barrier of entry](#5211-barrier-of-entry)
+      - [5.2.1.2. Challenges with managing state](#5212-challenges-with-managing-state)
+      - [5.2.1.3. State automation](#5213-state-automation)
+      - [5.2.1.4. Crossplane as an alternative](#5214-crossplane-as-an-alternative)
 - [6. Test Application](#6-test-application)
 - [7. Implementation](#7-implementation)
   - [7.1. List of tools/technologies used in this implementation](#71-list-of-toolstechnologies-used-in-this-implementation)
@@ -62,16 +62,15 @@ A testing application will be described and used to demonstrate the unversial co
 - [9. Discussion and evaluation of implementation](#9-discussion-and-evaluation-of-implementation)
   - [9.1. Build pipelines are still required](#91-build-pipelines-are-still-required)
   - [9.2. Extra cost?](#92-extra-cost)
-  - [Renaming resources](#renaming-resources)
-  - [9.3. Not everything can be in code.](#93-not-everything-can-be-in-code)
-  - [9.4. Security](#94-security)
-  - [9.5. Platform Engineering](#95-platform-engineering)
-  - [9.6. Workload overview and infrastructure replicability.](#96-workload-overview-and-infrastructure-replicability)
-  - [9.7. Bootstrapping Problem](#97-bootstrapping-problem)
+  - [9.3. Renaming resources](#93-renaming-resources)
+  - [9.4. Not everything can be in code.](#94-not-everything-can-be-in-code)
+  - [9.5. Security](#95-security)
+  - [9.6. Platform Engineering](#96-platform-engineering)
+  - [9.7. Workload overview and infrastructure replicability.](#97-workload-overview-and-infrastructure-replicability)
   - [9.8. Streamlining your codebase](#98-streamlining-your-codebase)
-  - [9.9. Limitations](#99-limitations)
-    - [9.9.1. Lack of providers | Early days | Maturity level](#991-lack-of-providers--early-days--maturity-level)
-    - [9.9.2. Multiple core-clusters](#992-multiple-core-clusters)
+  - [9.9. Bootstrapping Problem](#99-bootstrapping-problem)
+    - [9.9.1. Multiple core-clusters](#991-multiple-core-clusters)
+    - [9.9.2. Maturity level](#992-maturity-level)
   - [9.10. Eliminating state?](#910-eliminating-state)
 - [10. Conclusion](#10-conclusion)
 - [11. References](#11-references)
@@ -151,7 +150,7 @@ _Michael Vittrup Larsen_ from Eficode puts it like this:
 
 -->
 
-## 5.3. Declarative vs Imperative
+## 5.2. Declarative vs Imperative
 
 If we want to build a universal control plane for handling all our infrastructure, we need to base it on some core design ideas. First of all, we need to want to build our infrastructure as Infrastructure as Code (IaC) using as much declarative configuration as possible. We want to limit the amount of imperative commands and long scripts of sequential steps as much as possible. 
 
@@ -178,7 +177,7 @@ https://blog.mergify.com/gitops-the-game-changer/
 
 -->
 
-### 5.3.1. Terraform
+### 5.2.1. Terraform
 
 <!-- Det her skal måske bare slettes eller skrives ind i afsnittet lige nedenunder -->
 This project is supposed to handle cloud resources, and we need to cover how this is frequently done in the industry and what challenges it brings. This paper will, in later sections, describe how a universal control plane for handling external resources may overcome some of the challenges presented in this section. 
@@ -187,12 +186,12 @@ A very popular tool that is based on the idea of IaC and declarative configurati
 
 Terraform is an Infrastructure as Code tool that lets you define both cloud and on-prem resources in configuration files that you can version, reuse, and share. You can then use a consistent workflow to provision and manage all of your infrastructure throughout its lifecycle. Terraform can manage all kinds of resources, from low-level components to huge cloud provider-managed services [[source]](https://www.terraform.io/intro). Terraform has the concept of terraform-providers, where service providers can create integrations with Terraform and let the user manage the providers' services through the HashiCorp Configuration Language (HCL). "Providers enable Terraform to work with virtually any platform or service with an accessible API" [[source]](https://www.terraform.io/intro). 
 
-#### 5.3.1.1. Barrier of entry 
+#### 5.2.1.1. Barrier of entry 
 The only practical way of using Terraform in teams is to store the state in some remote place. This is commonly done on a cloud provider in some kind of "bucket"/"blobstorage". Setting this up can be a big hurdle to overcome if you have not done it before and you are not an experienced developer. So before you can solve _whatever your code is supposed to solve_, you first need to solve the problem of _how and where to store the Terraform state_, before you can even start developing anything in your team. 
 
 Removing this step by switching to control planes is a selling point on its own. Lowering a barrier to start up projects is always a good thing. 
 
-#### 5.3.1.2. Challenges with managing state
+#### 5.2.1.2. Challenges with managing state
 
 If you are a distributed team, it is a must to store the Terraform state in some remote place. But just because it is shared in a remote place does not mean two people can work on it at the same time.
 
@@ -213,7 +212,7 @@ This can both be a gift and a curse. If it is an emergency, then it is possible 
 
 So the Terraform state can either be updated by a manual task (e.g., a developer manually creating a database), a triggered automated task (e.g., a deployment pipeline that applies the newly changed Terraform files - e.g. [Atlantis](https://www.runatlantis.io/) or Terraform Cloud), or some GitOps tool that continuously syncs the actual state with the declared state stored in a repo (or elsewhere).
 
-#### 5.3.1.3. State automation
+#### 5.2.1.3. State automation
 
 You could install an automated tool or script that just does this `terraform apply` on a regular basis to ensure that there is no _configuration drift_. This is a reasonable approach, but then you are essentially creating a system that works just like a control plane. So instead of using a tool with all its issues and then patching some of the issues by wrapping it in some automation tool/script... why not just use a control plane that was built to solve exactly that?
 
@@ -224,7 +223,7 @@ This is where tools like _Crossplane_, Google's _Config Connector_, and AWS' _Co
 
 Even though the paper highlights Crossplane as a tool, the question is not so much if Crossplane specifically is a great tool or not - but more about whether the paradigm of control planes is good in general. As Eficode states: "If Crossplane does not strike the right balance and abstraction level, the next control plane will." [[source](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)]
 
-#### 5.3.1.4. Crossplane as an alternative
+#### 5.2.1.4. Crossplane as an alternative
 
 The most popular cloud-native control plane tool for handling external state is _Crossplane_. Crossplane is a CNCF project that tries to streamline cloud providers' APIs. 
 
@@ -342,8 +341,8 @@ Based on this philosophy of separation, I have chosen to structure my applicatio
 
 Besides Crossplane, ArgoCD also installed other packages/services:
 
-**NGINX**
-In order to call the `Quote Frontend` from outside Kubernetes, we need to set up ingress. NGINX is an ingress controller that acts as a reverse proxy and load-balancer and handles all external traffic into the cluster. A cluster needs an ingress controller in order to call the endpoints inside Kubernetes from outside Kubernetes.
+**Nginx**
+In order to call the `Quote Frontend` from outside Kubernetes, we need to set up ingress. Nginx is an ingress controller that acts as a reverse proxy and load-balancer and handles all external traffic into the cluster. A cluster needs an ingress controller in order to call the endpoints inside Kubernetes from outside Kubernetes.
 
 **Prometheus and Grafana**
 Prometheus and Grafana is a famous open-source monitoring stack. This stack is not strictly needed to run the test application, but it is used to resemble a realistic setup you would see in a company. It is installed on both the core clusters and the app clusters, so it is possible to observe resource usage. 
@@ -705,7 +704,7 @@ You can either start everything up at once or start with `skip` and spin up what
 
 You can run the `make start` command as many times as you want. It will detect that you already have a cluster running and ask if you want to delete the currently running version.
 
-By default (by choosing `skip`) the script will spin up a local containerized kubernetes cluster using _kind_ and install ArgoCD and deploy nginx (so you can connect to the cluster). ArgoCD will then apply all the crossplane related setup and apply the `manifest-syncer`. Now the baseline is set the `core cluster` can now be used as a control plane for spinning up external cloud resources, and deploy apps to external kubernetes clusters.  
+By default (by choosing `skip`) the script will spin up a local containerized kubernetes cluster using _kind_ and install ArgoCD and deploy Nginx (so you can connect to the cluster). ArgoCD will then apply all the crossplane related setup and apply the `manifest-syncer`. Now the baseline is set the `core cluster` can now be used as a control plane for spinning up external cloud resources, and deploy apps to external kubernetes clusters.  
 
 Spinning up everything depends if you run the core cluster locally or on GCP. Spinning up a GKE cluster on GCP takes around 10 minutes [[source](https://learn.hashicorp.com/tutorials/terraform/gke)]. So if you run your `core cluster` locally it results in _~15_ minutes process to spin up the entire system, of which 10 of them is only waiting for GCP creating the `app clusters`. If you run your `core cluster` on GCP you have to wait an initial 10 minutes before the core clusters is created resulting in a combined wait time of _~25_ minutes to spin up the entire system. 
 
@@ -744,19 +743,29 @@ When running the demonstrated setup, more resources were required to run the `co
 
 For the `core-cluster` to be running properly in GCP without issues 3 nodes of type "e2-medium" were needed. On monthly basis this is XX$ just for running the `core-cluster`. 
 
-## Renaming resources
+## 9.3. Renaming resources
 
-## 9.3. Not everything can be in code.
+
+
+## 9.4. Not everything can be in code.
 Ip addresses needs to be reserved beforehand.
 
-Even though this implementation aims at declaring everything in code it is not truly possible.
+When creating this project I wanted to have _everything_ declared in code, so I was spinning up everything from scratch with no prior setup. This was not possible (at least on GCP), because IP-addresses are dynamically assigned to resources unless you reserve them.
 
-When 
+If you create a kubernetes cluster on GCP it will provision a cluster for you and assign it a random free ip-address. This doesn't work well with my setup, since creating DNS-records with the GCP-crossplane-provider forces you to hardcode an IP-address into code.
 
-## 9.4. Security
+Getting dynamically assigned ip-addresses works fine for the whole setup, beside when you want to check-in you DNS records into code.
+
+So in this implementation with GCP I needed to reserve 3 ip-addresses. One for each Cluster running in GCP.
+
+< insert image >
+
+Those 3 ip-addresses are hardcoded into all the DNS records YAML-files and in the Nginx Controllers deployed by ArgoCD. Nginx needs to know which reserved IP-address to use, otherwise it will just pick a random.
+
+## 9.5. Security
 
 <!-- Terraform -->
-Security is naturally aspect managing a software infrastructure. Terraform on its own does not have has no concept of access control[[source](https://blog.upbound.io/outgrowing-terraform-and-migrating-to-crossplane/)] - You have to manage your access through credentials through the cloud provider. This works fine, but it is an extra set of credentials your organization has to manage. 
+Security is naturally aspect managing a software infrastructure. Terraform on its own does not have has no concept of access control [[source](https://blog.upbound.io/outgrowing-terraform-and-migrating-to-crossplane/)] - You have to manage your access through credentials through the cloud provider. This works fine, but it is an extra set of credentials your organization has to manage. 
 
 <!-- Crossplane -->
 With tools like Crossplane the development teams does not even need to have (write) access to the cloud provider. All external resources could be managed through tools like crossplane. Crossplane would be the only entity with (write) access to the cloud providers.
@@ -775,7 +784,7 @@ Combining ArgoCD and Crossplane you can create a workflow where external resourc
 
 How strict you want you permissions all depends on the policies and amount of trust in organization. This setup with Crossplane and ArgoCD makes it possible to create a system that is fairly restrictive. 
 
-## 9.5. Platform Engineering
+## 9.6. Platform Engineering
 
 Platform engineering is gaining popularity the last two years [[source](https://www.cncf.io/blog/2022/07/01/devops-vs-sre-vs-platform-engineering-the-gaps-might-be-smaller-than-you-think/)]. This topic is a standalone topic and is not the main focus of this paper, but we just quickly want to highlight how control planes like _crossplane_ can modernize your infrastructure, by embracing Platform Engineering and self-service. Crossplane has the concept of [Composite Resources](https://crossplane.io/docs/v1.9/concepts/composition.html#composite-resources), that works an abstraction layer between the actual managed resource running on the cloud provider and the resource offered by the infrastructure team to the development teams. The developer then do not have to worry about where the database runs. The developer just request a database in yaml, and the rest is handled by the abstraction created by the infrastructure/platform team. The abstraction becomes a platform for the developer to use - and they can self-service/provision infrastructure by using the provided abstraction. Developers will only interact directly with kubernetes and not any other cloud platform/portal.
 
@@ -783,7 +792,7 @@ _"This conversation is less about crossplane vs terraform. This is more about us
 
 This is also described in the security section. 
 
-## 9.6. Workload overview and infrastructure replicability.  
+## 9.7. Workload overview and infrastructure replicability.  
 
 One challenge big companies can have when their developers has direct access to the cloud resources is that cloud services gets created and forgotten about. These resources may have been created by accident or just used for a quick experiment. Other reasons could be that the resource is irrecoverable because the Terraform state was lost. The company ends up being charged for these un-utilized resources each month, because the company lack the knowledge if the services are actually used or not. Tools like Crossplane and ArgoCD can limit or mitigate this risk. 
 
@@ -793,26 +802,31 @@ If these cases are not detected you may think for that you can re-create your pr
 
 Having a `core cluster` that functions as an control plane for the rest of you infrastructure helps you go from [_Pets to Cattle_](https://www.youtube.com/watch?v=Od7e6hqis7A&ab_channel=PrismaCloudbyPaloAltoNetworks). The easier it is to spin up new cluster the less we will treat our infrastructure as "pets" [[source](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)]. 
 
-## 9.7. Bootstrapping Problem
+## 9.8. Streamlining your codebase
+
+The setup described in this paper is build only using 2 file types: `.yaml` and `makefiles`. `.yaml` is used for declaring the state of the whole setup. Everything declared as _Infrastructure as Code_ and check into git (_GitOps_) - while `makefiles` are only for the initial bootstrapping. 
+
+"Since Crossplane makes use of Kubernetes, it uses many of the same tools and processes, enabling more efficiency for users - without the need to learn and maintain entirely new tools" [[source](https://blog.upbound.io/outgrowing-terraform-and-migrating-to-crossplane/)]. This creates and extremely streamlined infrastructure, because it does not require knowledge about e.g Terraform, Ansible, or multiple scripting languages. I will consider this a huge benefit of this setup. 
+
+## 9.9. Bootstrapping Problem
 
 Every automatic process require some manual task to start the process. This initial task/command can not be declarative, since a command is by definition is imperative.
 
-In order to simplify the setup-process as much as possible, we aim to make the bootstrapping as simple, clean and error-safe as possible.The only bootstrapping done in this implemenetation is setting starting a cluster (used as `core-cluster`) and then installing ArgoCD on it. The rest of the setup is handled automaticity by ArgoCD with declarative/eventual consistency approach. 
+In order to simplify the setup-process as much as possible, we aim to make the bootstrapping as simple, clean and error-safe as possible.The only bootstrapping done in this implementation is setting starting a cluster (used as `core-cluster`) and then installing ArgoCD on it. The rest of the setup is handled automaticity by ArgoCD with declarative/eventual consistency approach. 
 
 The bootstrapping done in this implementation does not touch logging, monitoring, ingress, crossplane-related-stuff, helm-charts, etc, which you could be forced to install sequentially through a imperative script. 
 
 The main point is that we can't remove bootstrapping entirely - but we can try to reduce it as much as possible. We would argue that this bootstrapping is fairly minimal, since it only does 2 steps. 1: Spin up core-cluster (locally or on cloud provider), 2: install and setup ArgoCD.
 
-## 9.8. Streamlining your codebase
+### 9.9.1. Multiple core-clusters
 
-The setup described in this paper is build only using 2 file types: `.yaml` and `makefiles`. `.yaml` is used for declaring the state of the whole setup. Everything declared as _Infrastructure as Code_ and check into git (_GitOps_) - while `makefiles` are only for the intial bootstrapping. 
+Running multiple instances of a `core-cluster`s at the same doesn't work well. You can easily spin up multiple `core-cluster`s at the same time. E.g. running a `core-cluster` on GCP and running one locally. The problem is that they each have their own internal desired state and may work against each other. One cluster may want to create a given resource on a cloud provider, while another may want to delete that resource. This results in race-conditions and unpredictable behaviour.
 
-"Since Crossplane makes use of Kubernetes, it uses many of the same tools and processes, enabling more efficiency for users - without the need to learn and maintain entirely new tools" [[source](https://blog.upbound.io/outgrowing-terraform-and-migrating-to-crossplane/)]. This creates and extremely streamlined infrastructure, because it does not require knowledge about e.g Terraform, Ansible, or multiple scripting languages. I will consider this a huge benefit of this setup. 
+So the next question is how you test a configuration for the `core-cluster` if you can't spin up a new one, without it competing with the current version running. The only way to allow multiple `core-cluster`s to be run simultaneously is to run a complete copy of all your resources. So the copy could be named `core-cluster-copy` which then created e.g. a `prod-cluster-copy` and `aws-database-copy` and so on. It is fairly straight forward code-wise, so it is doable, but this would effectively double your cost infrastructure cost if you wanted to to a proper test of the `core-cluster`. 
 
+//insert image maybe //
 
-## 9.9. Limitations
-
-### 9.9.1. Lack of providers | Early days | Maturity level
+### 9.9.2. Maturity level
 
 Currently, the biggest limitation of using crossplane is the lack of providers and feature set each provider provides. 
 
@@ -830,14 +844,6 @@ When you use ArgoCD you put all your faith in that its controller correctly depl
 This is unfortunate, because if we can't delete the core-cluster then we still have a state/backup in this setup that we need to store somewhere (just like Terraform). 
 
 - ArgoCD can not connect to a external cluster based on data stored as a secret in kubernetes. Argo can only connect to external clusters by running `argocd add cluster <context-name-found-in-kubeconfig>` on your machine. This goes against the idea of declaring everything in yaml by forcing the user to call a shell command manually. (described here:https://github.com/argoproj/argo-cd/issues/4651)
-
-### 9.9.2. Multiple core-clusters
-
-Running multiple instances of a `core-cluster`s at the same doesn't work well. You can easily spin up multiple `core-cluster`s at the same time. E.g. running a `core-cluster` on GCP and running one locally. The problem is that they each have their own internal desired state and may work against each other. One cluster may want to create a given resource on a cloud provider, while another may want to delete that resource. This results in race-conditions and unpredictable behaviour.
-
-So the next question is how you test a configuration for the `core-cluster` if you can't spin up a new one, without it competing with the current version running. The only way to allow multiple `core-cluster`s to be run simultaneously is to run a complete copy of all your resources. So the copy could be named `core-cluster-copy` which then created e.g. a `prod-cluster-copy` and `aws-database-copy` and so on. It is fairly straight forward code-wise, so it is doable, but this would effectively double your cost infrastructure cost if you wanted to to a proper test of the `core-cluster`. 
-
-//insert image maybe //
 
 
 ## 9.10. Eliminating state?
