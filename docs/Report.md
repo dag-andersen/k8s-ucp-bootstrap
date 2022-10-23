@@ -82,8 +82,8 @@ A testing application will be described and used to demonstrate the unversial co
 <!-- - CaC? [[source]](https://octopus.com/blog/config-as-code-what-is-it-how-is-it-beneficial#:~:text=Config%20as%20Code%20(CaC)%20separates,version%20control%20for%20your%20configuration.) -->
 - **Infrastructure as Code (IaC)**: IaC is the managing and provisioning of infrastructure through code instead of through manual processes [[s](https://www.redhat.com/en/topics/automation/what-is-infrastructure-as-code-iac)].
 - **GitOps**: GitOps is an operational framework that takes DevOps best practices used for application development such as version control, collaboration, compliance, and CI/CD, and applies them to infrastructure automation [[s](https://about.gitlab.com/topics/gitops)]
-- **Reconciler pattern**: Reconciler pattern I the concept of checking the difference between the desired state and the current state, and if there is a difference, it tries to take action to make the current state to the desired state [[s](https://www.learnsteps.com/how-kubernetes-works-on-a-reconciler-pattern/)].
-- **Control plane**: WORK IN PROGRESS! Control planes follow the Reconciler pattern. A control plane is a service that watches a configuration and acts upon it when it changes. An example of this is Kubernetes' internal control plan that schedules pods/containers based on a declared state.
+- **Reconciler pattern**: Reconciler pattern is the concept of checking the difference between the desired state and the current state, and if there is a difference, it tries to take action to make the current state to the desired state [[s](https://www.learnsteps.com/how-kubernetes-works-on-a-reconciler-pattern/)].
+- **Control plane**: WORK IN PROGRESS! Control planes follow the Reconciler pattern. A control plane is a service that watches a configuration and acts upon it when it changes. An example of this is Kubernetes' internal control plane that schedules pods/containers based on a declared state.
 - **Cloud Native**: Cloud native technologies empower organizations to build and run scalable applications in modern, dynamic environments such as public, private, and hybrid clouds [[s](https://github.com/cncf/foundation/blob/main/charter.md#1-mission-of-the-cloud-native-computing-foundation)]. Kubernetes is the best example of this.
 - **Cloud Native Computing Foundation (CNCF)**: CNCF is the open source, vendor-neutral hub of cloud-native computing, hosting projects like Kubernetes and Prometheus to make cloud-native universal and sustainable. [[s](https://www.cncf.io/)].
 - **Google Cloud Platform (GCP)**: Cloud computing platform provided by Google.
@@ -93,13 +93,13 @@ A testing application will be described and used to demonstrate the unversial co
 
 With the creation of Kubernetes, we are seeing a rise in popularity of Control Planes. The concept is built on the idea that you declare a state and services, then watches the state and make sure that the system's actual state reflects the state declared. If the desired state changes, the control plane ensures that the new state is automatically reflected in the actual state. Control planes are self-healing, and they automatically correct drift.
 
-Kubernetes is a perfect ecosystem fundament for control planes because most events that happen inside is controlled by control planes. At its core, Kubernetes stores a state declared in YAML, and different services watch this state and make sure the actual state reflects the declared state. Kubernetes can easily be extended by creating new services that watch the state and act accordingly. During the last years, new control planes have emerged that also manage external resources. It works more or less the same way, but now the services instead ensure that some external state corresponds to declared
+Kubernetes is a perfect ecosystem fundament for control planes because most events that happen inside is controlled by control planes. At its core, Kubernetes stores a state declared in YAML, and different services watch this state and make sure the actual state reflects the declared state. Kubernetes can easily be extended by creating new services that watch the state and act accordingly. During the last years, new control planes have emerged that also manage external resources. It works more or less the same way, but now the services instead ensure that some external state corresponds to the declared state.
 
-Now the question is if we can combine these tools in order to create a universal control plane for handling all kinds of states, all managed from within Kubernetes. How would such a setup look? How would you interact with it? And what concerns and implications may such a setup bring?
+Now the question is if we can combine these tools in order to create a universal control plane for handling all kinds of states, all managed from within Kubernetes? How would such a setup look? How would you interact with it? And what concerns and implications may such a setup bring?
 
 ## 5.1. Motivation
 
-This paper is written in collaboration with Eficode. Eficode is a consultant company that specializes in DevOps. Eficode helps companies support or transform their DevOps processes. Eficode is always interested in keeping up with the latest trends and technologies in DevOps, so they can give their customers the best advice.
+This paper is written in collaboration with Eficode. Eficode is a consulting company that specializes in DevOps. Eficode helps companies support or transform their DevOps processes. Eficode is always interested in keeping up with the latest trends and technologies in DevOps, so they can give their customers the best advice.
 
 Eficode has already written about how Terraform does not scale well for big organizations in their post: [Outgrowing Terraform and adopting control planes](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes). Terraform has proven to be a stable and reliable infrastructure tool for many years now, but it may not always be the best solution. New technologies get showcased, and new paradigms emerge. 
 
@@ -153,19 +153,19 @@ _Michael Vittrup Larsen_ from Eficode puts it like this:
 
 ## 5.3. Declarative vs Imperative
 
-If we want to build a universal control plane for handling all our infrastructure, we need to base it on some core design ideas. First of all, we need to want to build our infrastructure as Infrastructure as Code (IaC) using as much declarative configuration as possible. We want to limit the amount of imperatives commands and long scripts of sequential steps as much as possible. 
+If we want to build a universal control plane for handling all our infrastructure, we need to base it on some core design ideas. First of all, we need to want to build our infrastructure as Infrastructure as Code (IaC) using as much declarative configuration as possible. We want to limit the amount of imperative commands and long scripts of sequential steps as much as possible. 
 
-Declarative and Imperative is two different DevOps Paradigms. Declarative Programming specifies _what_ final state we want, while imperative programming specifies _how_ we want to get to a given state.
+Declarative and Imperative are two different DevOps Paradigms. Declarative Programming specifies _what_ final state we want, while imperative programming specifies _how_ we want to get to a given state.
 
-<!--
+<!— det her har jeg skrevet 100 gange efterhånden 
 > Where? This concept makes the developers focus on _what_ state they want in the system and not _how_ to get there. We often see this approach in Infrastructure as Code, but with control planes we add the extra detail that the service is constantly syncing the actual state with the declared state. 
 --->
 
-We see this paradigm all across software development, from CSS in web development [[source]](https://edward-huang.com/distributed-system/programming/2021/02/28/why-you-should-always-design-your-api-declaratively-instead-of-imperative/) to Terraform in infrastructure management. 
+We see the declarative paradigm all across software development, from CSS in web development [[source]](https://edward-huang.com/distributed-system/programming/2021/02/28/why-you-should-always-design-your-api-declaratively-instead-of-imperative/) to Terraform in infrastructure management. 
 
-The imperative setup scales poorly in large software environments. "While using an imperative paradigm, the user is responsible for defining exact steps which are necessary to achieve the end goal, such as instructions for software installation, configuration, database creation". The developer has to carefully plan every step and the sequence in which they are executed. Suppose a change in the setup has to be made. In that case, the developer has to carefully make sure the change doesn't break something else in the sequence of steps - especially if there are conditional-statements, meaning there are multiple possible paths through the sequence of steps. Although suitable for small deployments, imperative DevOps does not scale and fails while deploying big software environments, such as OpenStack" [[source]](https://ubuntu.com/blog/declarative-vs-imperative-devops-done-right)
+The imperative setup scales poorly in large software environments. "While using an imperative paradigm, the user is responsible for defining exact steps which are necessary to achieve the end goal, such as instructions for software installation, configuration, and database creation". The developer has to carefully plan every step and the sequence in which they are executed. Suppose a change in the setup has to be made. In that case, the developer has to carefully make sure the change doesn't break something else in the sequence of steps - especially if there are conditional-statements, meaning there are multiple possible paths through the sequence of steps. Although suitable for small deployments, imperative DevOps does not scale and fails while deploying big software environments, such as OpenStack" [[source]](https://ubuntu.com/blog/declarative-vs-imperative-devops-done-right)
 
-Creating a declarative configuration is a higher abstraction than declaring a configuration with sequential imperative steps. Every declarative API encapsulates an imperative API underneath. For an declarative API work, there needs to be some code behind the scenes that parses the files and acts upon them in an imperative way. Declarative programming can not stand alone because there will always be a sequence of imperative steps executing some operations on a machine. [[source]](https://edward-huang.com/distributed-system/programming/2021/02/28/why-you-should-always-design-your-api-declaratively-instead-of-imperative/) and [[source]](https://ubuntu.com/blog/declarative-vs-imperative-devops-done-right).
+Creating a declarative configuration is a higher abstraction than declaring a configuration with sequential imperative steps. Every declarative API encapsulates an imperative API underneath. For a declarative API work, there needs to be some code behind the scenes that parses the files and acts upon them in an imperative way. Declarative programming can not stand alone because there will always be a sequence of imperative steps executing some operations on a machine. [[source]](https://edward-huang.com/distributed-system/programming/2021/02/28/why-you-should-always-design-your-api-declaratively-instead-of-imperative/) and [[source]](https://ubuntu.com/blog/declarative-vs-imperative-devops-done-right).
 
 
 <!--
@@ -183,28 +183,28 @@ https://blog.mergify.com/gitops-the-game-changer/
 <!-- Det her skal måske bare slettes eller skrives ind i afsnittet lige nedenunder -->
 This project is supposed to handle cloud resources, and we need to cover how this is frequently done in the industry and what challenges it brings. This paper will, in later sections, describe how a universal control plane for handling external resources may overcome some of the challenges presented in this section. 
 
-A very popular tool that is based on the idea of IaC and declarative configuration is Terraform. Terraforms' popularity started in 2016-2017 and has been going strong ever since. Now Terraform has integration with more than 1700 providers [[source]](https://www.hashicorp.com/resources/the-story-of-hashicorp-terraform-with-mitchell-hashimoto). So the natural question is now, why bother with control planes when tools like Terraform exists? This section will describe some of the issues related to using Terraform and why it might be better to use control planes for handling external resources. 
+A very popular tool that is based on the idea of IaC and declarative configuration is Terraform. Terraforms' popularity started in 2016-2017 and has been growing ever since. Now Terraform has integration with more than 1700 providers [[source]](https://www.hashicorp.com/resources/the-story-of-hashicorp-terraform-with-mitchell-hashimoto). So the natural question is now, why bother with control planes when tools like Terraform exist? This section will describe some of the issues related to using Terraform and why it might be better to use control planes for handling external resources. 
 
 Terraform is an Infrastructure as Code tool that lets you define both cloud and on-prem resources in configuration files that you can version, reuse, and share. You can then use a consistent workflow to provision and manage all of your infrastructure throughout its lifecycle. Terraform can manage all kinds of resources, from low-level components to huge cloud provider-managed services [[source]](https://www.terraform.io/intro). Terraform has the concept of terraform-providers, where service providers can create integrations with Terraform and let the user manage the providers' services through the HashiCorp Configuration Language (HCL). "Providers enable Terraform to work with virtually any platform or service with an accessible API" [[source]](https://www.terraform.io/intro). 
 
 #### 5.3.1.1. Barrier of entry 
 The only practical way of using Terraform in teams is to store the state in some remote place. This is commonly done on a cloud provider in some kind of "bucket"/"blobstorage". Setting this up can be a big hurdle to overcome if you have not done it before and you are not an experienced developer. So before you can solve _whatever your code is supposed to solve_, you first need to solve the problem of _how and where to store the Terraform state_, before you can even start developing anything in your team. 
 
-Removing this step by switching to control planes is a selling point on its own. Lowering the amount it takes to start up projects is always a good thing. 
+Removing this step by switching to control planes is a selling point on its own. Lowering a barrier to start up projects is always a good thing. 
 
 #### 5.3.1.2. Challenges with managing state
 
 If you are a distributed team, it is a must to store the Terraform state in some remote place. But just because it is shared in a remote place does not mean two people can work on it at the same time.
 
 <!-- no lock -->
-When storing the state in a remote place, you need to specify a so-called `backend`, but not all `backend`s support locking. This means that in some cases, race conditions can still happen (if two people run `terraform apply` at the same time). An example of this is that there is no lock on the state if stored on AWS S3. A solution to this is to store lock file somewhere else (e.g. AWS DynamoDB) [[source]](https://adambrodziak.pl/terraform-is-terrible). This, again just adds to the complexity and works an even bigger barrier if you want to make sure your Terraform is safe to use. 
+When storing the state in a remote place, you need to specify a so-called `backend`, but not all `backend`s support locking. This means that in some cases, race conditions can still happen (if two people run `terraform apply` at the same time). An example of this is that there is no lock on the state if stored on AWS S3. A solution to this is to store lock file somewhere else (e.g. AWS DynamoDB) [[source]](https://adambrodziak.pl/terraform-is-terrible). This again just adds to the complexity and creates an even bigger barrier if you want to make sure your Terraform is safe to use. 
 
 <!-- force unlocking -->
 Furthermore, if a `terraform apply` goes wrong because the process is interrupted for whatever reason, the state can end up not being unlocked, and you have to `force-unlock` the state [[source]](https://www.terraform.io/cli/state/recover). This is, of course, a great feature to solve the issue - but the main problem here is that this can happen to begin with.
 Things can get even worse if a `force-unlock` is executed while another process is in the middle of applying [[source]](https://www.terraform.io/language/state/locking). Managing a mutual state in a distributed state is difficult at its core. 
 
 <!-- only one person at a time -->
-But even though there may be a lock that makes sure that there is no race condition while applying, only one person/process can work on the state at once. Updating a Terraform state can take minutes - e.g., it will take around 10 minutes to spin up a GKE cluster on GCP [[source](https://learn.hashicorp.com/tutorials/terraform/gke)]. "During this time no other entity - no other engineer - can apply changes to the configuration." [[source](https://blog.crossplane.io/crossplane-vs-terraform/)]. This is an even bigger problem when you have a monolithic setup with a lot of dependencies. So if one developer is updating the GKE cluster, then another developer may be blocked from updating a database or a networking rule.
+But even though there may be a lock that makes sure that there is no race condition while applying, only one person/process can work on the state simultaneously. Updating a Terraform state can take minutes - e.g., it will take around 10 minutes to spin up a GKE cluster on GCP [[source](https://learn.hashicorp.com/tutorials/terraform/gke)]. "During this time no other entity - no other engineer - can apply changes to the configuration." [[source](https://blog.crossplane.io/crossplane-vs-terraform/)]. This is an even bigger problem when you have a monolithic setup with a lot of dependencies. So if one developer is updating the GKE cluster, then another developer may be blocked from updating a database or a networking rule.
 
 <!-- drift -->
 Another challenge with Terraform state is that Terraforms state can easily go out of date with reality. This is called _configuration drift_ [[source](https://adambrodziak.pl/terraform-is-terrible) and [source](https://blog.upbound.io/outgrowing-terraform-and-migrating-to-crossplane/)]. If the `terraform apply`-command is not run regularly, the actual state can drift away from the declared/desired state. This means the state no longer reflects the real world. This can create issues when later mutating the stored state, which can make the stored state unusable because it is so far from the actual state. 
@@ -215,36 +215,36 @@ So the Terraform state can either be updated by a manual task (e.g., a developer
 
 #### 5.3.1.3. State automation
 
-You could install an automated tool or script that just does this `terraform apply` on a regular basis to ensure that there is no _configuration drift_. This is a reasonable approach, but then you are essentially creating a system that works just like a control plane. So instead of using a tool with all its issues and then patching some of the issues by wrapping it in some automation tool/script... why not just use a control plane that was built to solve exactly with that?
+You could install an automated tool or script that just does this `terraform apply` on a regular basis to ensure that there is no _configuration drift_. This is a reasonable approach, but then you are essentially creating a system that works just like a control plane. So instead of using a tool with all its issues and then patching some of the issues by wrapping it in some automation tool/script... why not just use a control plane that was built to solve exactly that?
 
 Kubernetes stores desired state, and the internal components try to keep the actual state as close as possible to the desired state. The state is stored as Kubernetes objects definitions declared in YAML. Why not store the same information usually stored in Terraform state inside Kubernetes instead?
 A control plane running on Kubernetes could automatically sync (similar to continuously running `terraform apply`) the actual infrastructure with the declared state in YAML. 
 
 This is where tools like _Crossplane_, Google's _Config Connector_, and AWS' _Controllers for Kubernetes_ come into play. This paper will focus on Crossplane because it is built as a foundation for control planes in general and not only focuses on a single cloud provider.
 
-Even though the paper highlights Crossplane as a tool, the question is not so much if Crossplane specificity is a great tool or not - but more about whether the paradigm of control planes is good in general. As Eficode states: "If Crossplane does not strike the right balance and abstraction level, the next control plane will." [[source](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)]
+Even though the paper highlights Crossplane as a tool, the question is not so much if Crossplane specifically is a great tool or not - but more about whether the paradigm of control planes is good in general. As Eficode states: "If Crossplane does not strike the right balance and abstraction level, the next control plane will." [[source](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)]
 
 #### 5.3.1.4. Crossplane as an alternative
 
 The most popular cloud-native control plane tool for handling external state is _Crossplane_. Crossplane is a CNCF project that tries to streamline cloud providers' APIs. 
 
 <!-- her er der en gentagelse af noget fra terraform afsnittet. Jeg ved ikke endnu hvilken del der skal slettes hvorfra  -->
-Crossplane tries to follow the success of Terraform and apply some of the same concepts to Kubernetes. Terraform has the concept of _providers_. A Terraform provider is a Terraform plugin that allows users to manage an external API. "Terraform uses providers to provision resources, which describe one or more infrastructure objects like virtual networks and compute instances. Each provider on the Terraform Registry has documentation detailing available resources and their configuration options." [[source]](https://www.terraform.io/cdktf/concepts/providers). Crossplane mimics this concept, so external organizations can create a plugin that integrates with crossplane providing the user the ability to provision external resources.
+Crossplane tries to follow the success of Terraform and applies some of the same concepts to Kubernetes. Terraform has the concept of _providers_. A Terraform provider is a Terraform plugin that allows users to manage an external API. "Terraform uses providers to provision resources, which describe one or more infrastructure objects like virtual networks and compute instances. Each provider on the Terraform Registry has documentation detailing available resources and their configuration options." [[source]](https://www.terraform.io/cdktf/concepts/providers). Crossplane mimics this concept, so external organizations can create a plugin that integrates with crossplane providing the user the ability to provision external resources.
 
 <!-- multi-cloud -->
 Crossplane can be used to provision resources for all cloud providers if the cloud provider has created a Crossplane provider for it.
 As a company/organization, it can be beneficial to have the option to be multi-cloud because different cloud providers have different offerings. 
 
-Terraform uses HashiCorp configuration language (HCL), while crossplane use `YAML` and follows the same structure conventions as Kubernetes manifests.
+Terraform uses HashiCorp configuration language (HCL), while Crossplane uses `YAML` and follows the same structure conventions as Kubernetes manifests.
 
 <!-- Transitioning -->
-It can be a big jump to go from Terraform to Control planes, which is why tools like _Kubeform_ and _the Terraform provider for Crossplane_ exist. Kubeform provides auto-generated Kubernetes CRDs for Terraform resources so that you can manage any cloud infrastructure in a Kubernetes native way. This requires you to rewrite your HCL to Kubernetes CRDs, so if that is too time-consuming, you can instead you can use Crossplane's Terraform provider. This provider lets you copy-paste your Terraform syntax directly into a CRD, and Crossplane will, in concept, run `terraform apply` automatically. This could be an intermediate step before doing a complete transition from Terraform to Crossplane. 
+It can be a big jump to go from Terraform to Control planes, which is why tools like _Kubeform_ and _the Terraform provider for Crossplane_ exist. Kubeform provides auto-generated Kubernetes CRDs for Terraform resources so that you can manage any cloud infrastructure in a Kubernetes native way. This requires you to rewrite your HCL to Kubernetes CRDs, so if that is too time-consuming, you can instead use Crossplane's Terraform provider. This provider lets you copy-paste your Terraform syntax directly into a CRD, and Crossplane will, in concept, run `terraform apply` automatically. This could be an intermediate step before doing a complete transition from Terraform to Crossplane. 
 
 Crossplane will be described in greater detail in the _Managing External State_-section. 
 
 # 6. Test Application
 
-In order to test the universal control plane I am trying to build presented in the _Implementation_-section, I need a test application that runs on the infrastructure and demonstrates its capabilities. 
+In order to test the universal control plane I am trying to build (presented in the _Implementation_-section), I need a test application that runs on the infrastructure and demonstrates its capabilities. 
 
 To do this, I have used Eficode's public `quotes-flask` application that they use for educational purposes. It is a simple application consisting of a frontend, backend, and a database.
 
@@ -254,7 +254,7 @@ This system is built to be run in Kubernetes, and the repository already contain
 
 <img src="images/drawings_quote-setup-versions.png" width="800" />
 
-This setup is supposed to represent an actual production-ready application a small business may want to run on a cloud provider.
+This setup is supposed to represent an actual production-ready application that a small business may want to run on a cloud provider.
 
 The business may want multiple environments like _production_, _staging_, and _development_, and they may leverage cloud services across multiple cloud providers. 
 Therefore the aim of the system is to look something like the image below.
@@ -268,13 +268,13 @@ The evaluation of this project will partially be based on how well the implement
 # 7. Implementation
 
 <!-- what will be in this Implementation-section? -->
-This section will describe how I suggest building a universal control plane within Kubernetes for handling internal and external resources. The implementation strives to imitate a production-ready system for a small company with a website running in a production and staging environment in the cloud.
+This section describes how I suggest building a universal control plane within Kubernetes for handling internal and external resources. The implementation strives to imitate a production-ready system for a small company with a website running in a production and staging environment in the cloud.
 
 <!-- main idea -->
 The main idea of this implementation is to have a single cluster that works as a control plane. This cluster will provision other clusters and deploy software to them.
 
 <!-- naming -->
-For the section, I'll introduce two names: `core cluster` and `app cluster`. The `core cluster` is the control plane for managing your infrastructure and software environment. The `app clusters` is a shared term for all the clusters where business logic is supposed to run. For instance, a company may have two `app cluster`s in the form of a production cluster and a staging cluster. The `core cluster` that hosts all the shared services between different `app cluster` environments. 
+For the section, I'll introduce two names: `core cluster` and `app cluster`. The `core cluster` is the control plane for managing your infrastructure and software environment. The `app clusters` is a shared term for all the clusters where business logic is supposed to run. For instance, a company may have two `app cluster`s in the form of a production cluster and a staging cluster. The `core cluster` hosts all the shared services between different `app cluster` environments. 
 
 <img src="images/drawings_control-plane.png" width="600" />
 
@@ -287,9 +287,9 @@ The `core cluster` will use Crossplane for provisioning cloud resources and use 
 
 <img src="images/drawings_resource-abstraction-layers.png" width="700" />
 
-> Figure X: An visualization of how ArgoCD and Crossplane works together to provision cloud resources.
+> Figure X: An visualization of how ArgoCD and Crossplane work together to provision cloud resources.
 
-ArgoCD handles all internal state, while Crossplane handles all external states - Combined, they can be used as a universal control plane.
+ArgoCD handles all internal state, while Crossplane handles all external states - combined, they can be used as a universal control plane.
 
 As mentioned previously, the question is not whether Crossplane or ArgoCD are great tools or not - but more about whether the paradigm of control planes is good in general. As Eficode states: "If Crossplane does not strike the right balance and abstraction level, the next control plane will." [[source](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)]
 
@@ -298,7 +298,7 @@ This setup can easily be extended by other tools. Crossplane is currently focuse
 ## 7.1. List of tools/technologies used in this implementation
 
 **ArgoCD**
-ArgoCD is a GitOps tool using control planes, and it runs inside Kubernetes. ArgoCD is used for this implementation because it more advanced UI features compared to similar tools. The two biggest GitOps Tools are FluxCD and ArgoCD. This implementation could also be built using FluxCD. FluxCD and ArgoCD cover most of the same features, but the way you structure code looks a bit different. Both tools would be good candidates for building a universal control plane for Kubernetes.
+ArgoCD is a GitOps tool using control planes, and it runs inside Kubernetes. ArgoCD is used for this implementation because it has more advanced UI features compared to similar tools. The two biggest GitOps Tools are FluxCD and ArgoCD. This implementation could also be built using FluxCD. FluxCD and ArgoCD cover most of the same features, but the way you structure code looks a bit different. Both tools would be good candidates for building a universal control plane for Kubernetes.
 > ArgoCD was accepted to CNCF on April 7, 2020, and is at the Incubating project maturity level [[source](https://www.cncf.io/projects/argo/)].
 
 **Crossplane**
@@ -306,26 +306,26 @@ Crossplane is used in this implementation because it is the only option if you w
 > Crossplane was accepted to CNCF on June 23, 2020, and is at the Incubating project maturity level. [[source](https://www.cncf.io/projects/crossplane/)]
 
 **Google Cloud Platform**
-GCP was chosen as the main provider for cloud-hosted Kubernetes clusters because it is less complex to use than AWS but advanced and mature enough to work well with crossplane. Another choice would be DigitalOcean, but I experienced some issues with using Crossplane with DigitalOcean (also described in the _limitation_ section). I didn't experiment with Microsoft Azure since I had no prior experience working with them as a cloud provider. Both AWS and Azure would be a potential alternatives to GCP in this implementation. 
+GCP was chosen as the main provider for cloud-hosted Kubernetes clusters because it is less complex to use than AWS but advanced and mature enough to work well with Crossplane. Another choice would be DigitalOcean, but I experienced some issues with using Crossplane with DigitalOcean (also described in the _limitation_ section). I didn't experiment with Microsoft Azure since I had no prior experience working with them as a cloud provider. Both AWS and Azure would be a potential alternatives to GCP in this implementation. 
 
 **Kind**
-kind is used for running the Kubernetes cluster locally. When developing and experimenting with this setup, it can be beneficial to run the setup locally because it can take a long time to provision clusters on cloud providers (e.g., it often takes 10 minutes on GCP). There are many different tools for running Kubernetes locally, and many of them would probably work for this implementation, but the choice ended with Kind because it is easy to set up and simple to use. Other alternatives could be _MicroK8s_ or _Docker Desktop_. 
+Kind is used for running the Kubernetes cluster locally. When developing and experimenting with this setup, it can be beneficial to run the setup locally because it can take a long time to provision clusters on cloud providers (e.g., it often takes 10 minutes on GCP). There are many different tools for running Kubernetes locally, and many of them would probably work for this implementation, but the choice ended with Kind because it is easy to set up and simple to use. Other alternatives could be _MicroK8s_ or _Docker Desktop_. 
 
 **Gum**
 Gum is a simple command line tool for making interactive scripts. When you want to start any type of custom-made system from a terminal, it usually involves creating multiple scripts for doing some of the initial bootstrapping. Gum was chosen as a simple tool for interactively picking a configuration on runtime instead of having to remember command parameters or creating static config-script.
 
 **Helm and Kustomize**
-Helm and Kustomize are used to template and install Kubernetes resources. Helm is a package manager for Kubernetes. ArgoCd installs external packages (like Crossplane) using Helm. Kustomize is used for handling templating of my own Kubernetes manifests. One could choose not to use kustomize and instead put everything into helm charts as an alternative to this implementation. 
+Helm and Kustomize are used to template and install Kubernetes resources. Helm is a package manager for Kubernetes. ArgoCd installs external packages (like Crossplane) using Helm. Kustomize is used for handling templating of my own Kubernetes manifests. One could choose not to use Kustomize and instead put everything into Helm charts as an alternative to this implementation. 
 
 ## 7.2. Managing internal state
 
 <!-- intro -->
-Everything deployed to the clusters is declared in YAML, checked into git, and read by ArgoCD. 
+Everything deployed to the clusters are declared in YAML, checked into git, and read by ArgoCD. 
 
 <!-- one or more clusters -->
 ArgoCD can either be installed on each cluster individually (only controlling the local state) or on a shared cluster which then handles the deployment to multiple clusters.
 
-Installing ArgoCD on each cluster means there is no shared interface of all the infrastructure running across clusters. You would have to have multiple endpoints and multiple argo-profiles/-credentials for each argo instance running in each cluster, which may not be desirable if you run infrastructure on a large scale. Furthermore, it also consumes more resources to run all ArgoCDs components on each cluster (vs. only it on a single cluster), which may be a consideration if your company's budget is tight. 
+Installing ArgoCD on each cluster means there is no shared interface of all the infrastructure running across clusters. You would have to have multiple endpoints and multiple argo-profiles/-credentials for each argo instance running in each cluster, which may not be desirable if you run infrastructure on a large scale. Furthermore, it also consumes more resources to run all ArgoCDs components on each cluster (vs. only on a single cluster), which may be a consideration if your company's budget is tight. 
 
 For this implementation, a single instance of ArgoCD will run on the `core-cluster` and deploy and manage all the Kubernetes Object running in both the core cluster and the app clusters.
 
@@ -346,12 +346,12 @@ Besides Crossplane, ArgoCD also installed other packages/services:
 In order to call the `Quote Frontend` from outside Kubernetes, we need to set up ingress. NGINX is an ingress controller that acts as a reverse proxy and load-balancer and handles all external traffic into the cluster. A cluster needs an ingress controller in order to call the endpoints inside Kubernetes from outside Kubernetes.
 
 **Prometheus and Grafana**
-Prometheus and Grafana is a famous open-source monitoring stack. This stack is not strictly needed to run the test application, but it is used to resemble a realistic setup you would see at a company. It is installed on both the core clusters and the app clusters, so it is possible to observe resource usage. 
+Prometheus and Grafana is a famous open-source monitoring stack. This stack is not strictly needed to run the test application, but it is used to resemble a realistic setup you would see in a company. It is installed on both the core clusters and the app clusters, so it is possible to observe resource usage. 
 
 ### 7.2.2. Eventual consistency
 
 <!-- intro -->
-At its core, all ArgoCD reads from a given branch on a given repository and applies all the resources that it finds to Kubernetes. By default, there is no order to this process, but ArgoCD will just apply all the manifests, and then Kubernetes will handle the rest. 
+At its core, all ArgoCD does is that it reads from a given branch on a given repository and applies all the resources that it finds to Kubernetes. By default, there is no order to this process, but ArgoCD will just apply all the manifests, and then Kubernetes will handle the rest. 
 
 <!-- dependencies -->
 In any modern software environment, there exist dependencies. The amount of dependencies depends on how well your system is decoupled. 
@@ -389,7 +389,7 @@ On the other hand, you may not want everyone in the organization to have read-ac
 
 The main point here is that there are many ways to structure your GitOps synced repositories, and it all depends on what kind of needs you have in your organization. 
 
-Below we can see the folder structure of the `Core Cluster` and `App Cluster`. Most resource that is applied by ArgoCD is structured/built with Kustomize using the [base-overlay-pattern](https://github.com/kubernetes-sigs/kustomize/blob/53cc76fe43c91493d093c2832cc61425aa2972e1/README.md#2-create-variants-using-overlays), thus why we have all the `base` and `overlays` folders. 
+Below we can see the folder structure of the `Core Cluster` and `App Cluster`. Most resources that are applied by ArgoCD are structured/built with Kustomize using the [base-overlay-pattern](https://github.com/kubernetes-sigs/kustomize/blob/53cc76fe43c91493d093c2832cc61425aa2972e1/README.md#2-create-variants-using-overlays), this is why we have all the `base` and `overlays` folders. 
 
 <table>
 <tr>
