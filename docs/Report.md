@@ -61,7 +61,8 @@ A testing application will be described and used to demonstrate the unversial co
     - [8.1.3. Spinning up the cluster form scratch](#813-spinning-up-the-cluster-form-scratch)
 - [9. Discussion and evaluation of implementation](#9-discussion-and-evaluation-of-implementation)
   - [9.1. Build pipelines are still required](#91-build-pipelines-are-still-required)
-  - [9.2. Cost](#92-cost)
+  - [9.2. Extra cost?](#92-extra-cost)
+  - [Renaming resources](#renaming-resources)
   - [9.3. Not everything can be in code.](#93-not-everything-can-be-in-code)
   - [9.4. Security](#94-security)
   - [9.5. Platform Engineering](#95-platform-engineering)
@@ -608,23 +609,28 @@ One could argue that it is bad practice to build your own small services like th
 
 # 8. Putting it all together
 
-In order to demonstrate that all the components actually work, I have built this setup to show how both internal and external state management plays together to have a fully declarative infrastructure setup managed from inside Kubernetes. 
+Continuing from the _Test Application_-section, we now have all the pieces to run the Quote Application in a multi-environment spanning across multiple cloud-providers.
 
-In this setup, I have two environments running: production and staging. Each environment runs in its own VPN (and subnetwork) and subdomain on GCP. Both environments can connect to a shared database, either running on AWS or GCP. The demonstrations use AWS to show that this kind of setup works across different cloud providers. As described in the _XXXX_ section, each environment runs a simple frontend service, which calls a backend service, which then stores its data on the database. In practice, this results in an `ingress` object, two `service` objects, and two `deployment` objects per environment.
-
-This is proof of concept. This paper is not arguing that this is good software architecture. 
-
-<img src="images/drawings_quote-setup.png" width="1200" />
+In this demonstrated instance, I have two environments running: production and staging. Each environment runs in its own VPN (and subnetwork) and has its own subdomain on GCP. Both environments can connect to a shared database, either running on AWS or GCP. The demonstrations use AWS to show that this kind of setup works across different cloud providers. 
+<!-- As described in the _XXXX_ section, each environment runs a simple frontend service, which calls a backend service, which then stores its data on the database. In practice, this results in an `ingress` object, two `service` objects, and two `deployment` objects per environment. -->
 
 <img src="images/drawings_quote-setup-cloud-provider-final.png" width="1000" />
 
+> On this illustration it is shown how the _Test Application_ (described in _Test Application_-section) now runs on GCP and accesses a database in AWS. All the blue boxes are objects/resources provisioned by Crossplane, while all the yellow/beige boxes are objects/resources deployed and managed by ArgoCD.
+
+This is proof of concept. This paper is not arguing that this is good software architecture. 
+
 The production and staging environment runs completely separate on GCP. This project makes it possible to (theoretically at least) scale the number of workload-environments to infinity through the `core-cluster` and _IaC_ based _GitOps_. 
 
-Crossplane does not have a UI, but you can interact with it with `kubectl` like any other Kubernetes resource. Running `kubectl get managed` will print a list of all the resources managed by crossplane. The external resources used in this demo are shown blow.
+Crossplane does not have a UI, but you can interact with it with `kubectl` like any other Kubernetes resource. Running `kubectl get managed` will print a list of all the resources managed by crossplane. The external resources used in this demo are shown below.
 
 <img src="images/crossplane-print.png" width="1000" />
 
 > Here we can see that two VPCs (`network.compute.gcp`), two subnets (`subnetwork.compute.gcp`), six DNS records (`resourcerecordset.dns.gcp`), two k8s clusters (`cluster.container.gcp`), and two node pools (`nodepool.container.gcp`) are running on GCP and a single database instance (`rdsinstance.database.aws`) is running on AWS.
+
+All this is managed by a universal control plane running in Kubernetes (the so called `core-cluster`). 
+
+The following section will describe how to use this implementation of a  universal control plane and how a software team would develop and deploy services running in app clusters such as production-cluster.
 
 ## 8.1. Use in practice
 
@@ -705,17 +711,23 @@ Spinning up everything depends if you run the core cluster locally or on GCP. Sp
 
 # 9. Discussion and evaluation of implementation
 
-We have now explained how control planes work, how to build an entires system based on control planes, and showed how such a system could be used in pratice. 
+We have now explained how control planes work, how to build an entires system based on control planes, and showed how such a system could be used in practice. 
 
 Changing your infrastructure management to paradigm of control planes will make you re-evaluate bla bla bla
 
-This section will discuss some of the challenges and limitations of this setup. These topics will give Eficode a better baseline for discussion pros and cons with their client when discussing if they should move infrastructure built on control planes. 
+This section will discuss some of the challenges and limitations of using kubernetes as an universal control plane. These topics will give Eficode a better baseline for discussion pros and cons with their client when discussing if they should move infrastructure built on control planes. 
+
+The discussion topics are:
+- Deployment pipelines
+- Extra cost?
 
 ## 9.1. Build pipelines are still required
 
-Switching to a GitOps workflow will not eliminate the need of pipelines. With the demonstrated setup you still need some kind of build-pipeline that runs whenever you have a new version of your app.
+Switching to a GitOps workflow with ArgoCD or FluxCD will not eliminate the need of pipelines. With the demonstrated setup you still need some kind of build-pipeline that runs whenever you have a new version of your app.
 
 <img src="images/drawings_pipeline-types.png" width="800" />
+
+> Figure X: Image shows 3 different ways of building deployment systems.
 
 Classic build/deploy pipelines with kubernetes consist of 3 steps: _build image_, _push image_, and _apply yaml changes_ to kubernetes. ArgoCD introduces a new step where the gitops-synced-repo is updated ( - there is no standardized way of updating this gitops-synced-repo, so it usually ends with custom script that pushes a new version to the repo). So with ArgoCD there is still 3 steps included in the pipeline: The last step is just replaced with updating a repo instead of apply yaml changes to the cluster directly.
 
@@ -723,17 +735,23 @@ So in that sense we have not optimized much, we still have 3 steps in the deploy
 
 As described in the _Declarative vs Imperative_-section we prefer declarative configuration when we have the option. All the steps in the pipelines are so far imperative. In order to avoid the need to create this custom imperative code that pushes the new configuration to the gitops-synced-repo, `argocd-image-updater`-project, was created. `argocd-image-updater` is part of the _Argo Project_ and tries to tackle this challenge by moving the image-version-update-logic into a kubernetes operator. Now the pipeline system should only worry about building and pushing images. We tried the `argocd-image-updater`, but experience issues connecting to _Docker Hub_ (as explained here: <link>). The `argo-image-updater`-project has been going on for at least 2 years, without reaching a stable state. So i will not consider this reliable option at the moment. The same tool exits in the FluxCD ecosystem [[source]](https://fluxcd.io/flux/components/image/imageupdateautomations/). The Flux automated image updater may function as intended, but since we went with the ArgoCD ecosystem it was not reasonable to try out the flux version in this limited time frame. 
 
-Overall we have only managed to make the deployment process more complex by switching to GitOps/ArgoCD, but at the same time we have gained the well known benefints of GitOps [[source](https://blog.mergify.com/gitops-the-game-changer/) and more?]
+Overall we have only managed to make the deployment process more complex by switching to GitOps/ArgoCD, but at the same time we have gained the well known benefits of GitOps [[source](https://blog.mergify.com/gitops-the-game-changer/) and more?]
 
-## 9.2. Cost
+## 9.2. Extra cost?
 When using kubernetes as a control plane we are running an extra kubernetes cluster, which is not free. Since this setup entails that we run a `core-cluster` (which doesn't provide any customer direct value) it will naturally mean that we spend more money on cloud resources than if we didn't run a `core-cluster`.
 
-When running this implementation, more resources were required to run the `core-cluster` than the stage and production cluster examples combined. The ratio between the resources required by `core-cluster` and `workload-cluster`s, will depend on how much workload you run in production. But for my small examples the resources required by the `core-cluster` surpassed the other clusters combined, so if this setup would be adapted by a smaller company/team the economical aspect may be relevant. 
+When running the demonstrated setup, more resources were required to run the `core-cluster` than the staging and production cluster combined. The ratio between the resources required by `core-cluster` and `workload-cluster`s, will depend on how much workload you run in production. But for my small examples the resources required by the `core-cluster` surpassed the other clusters combined, so if this setup would be adapted by a smaller company/team the economical aspect may be relevant. 
 
-For this setup to be running properly without issues 3 nodes of type "e2-medium" were needed. On monthly basis this is XX$ just for running the `core-cluster`. 
+For the `core-cluster` to be running properly in GCP without issues 3 nodes of type "e2-medium" were needed. On monthly basis this is XX$ just for running the `core-cluster`. 
+
+## Renaming resources
 
 ## 9.3. Not everything can be in code.
 Ip addresses needs to be reserved beforehand.
+
+Even though this implementation aims at declaring everything in code it is not truly possible.
+
+When 
 
 ## 9.4. Security
 
