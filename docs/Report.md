@@ -610,26 +610,28 @@ One could argue that it is bad practice to build your own small services like th
 
 Continuing from the _Test Application_-section, we now have all the pieces to run the Quote Application in a multi-environment spanning across multiple cloud-providers.
 
-In this demonstrated instance, I have two environments running: production and staging. Each environment runs in its own VPN (and subnetwork) and has its own subdomain on GCP. Both environments can connect to a shared database, either running on AWS or GCP. The demonstrations use AWS to show that this kind of setup works across different cloud providers. 
-<!-- As described in the _XXXX_ section, each environment runs a simple frontend service, which calls a backend service, which then stores its data on the database. In practice, this results in an `ingress` object, two `service` objects, and two `deployment` objects per environment. -->
+For demonstration purposes the Kubernetes clusters will run i GCP while the managed database will run in AWS to show that this kind of setup works across different cloud providers. On GCP there will be two environments running: _production_ and _staging_. Each environment runs in its own VPN (and subnetwork) and has its own subdomain on GCP. Both environments can connect to the database running on AWS. This architecture is only for demonstration purposes. This paper is not arguing that this is good software architecture.
 
-<img src="images/drawings_quote-setup-cloud-provider-final-k8s.png" width="1000" />
-
-> On this illustration it is shown how the _Test Application_ (described in _Test Application_-section) now runs on GCP and accesses a database in AWS. All the blue boxes are objects/resources provisioned by Crossplane, while all the yellow/beige boxes are objects/resources deployed and managed by ArgoCD.
-
-This is proof of concept. This paper is not arguing that this is good software architecture. 
-
-The production and staging environment runs completely separate on GCP. This project makes it possible to (theoretically at least) scale the number of workload-environments to infinity through the `core-cluster` and _IaC_ based _GitOps_. 
-
-Crossplane does not have a UI, but you can interact with it with `kubectl` like any other Kubernetes resource. Running `kubectl get managed` will print a list of all the resources managed by crossplane. The external resources used in this demo are shown below.
+<!-- Crossplane resources print -->
+The cloud resources needed for this setup are provisioned through Crossplane and can bee seen on Figur X. Crossplane does not have a UI, but you can interact with it with `kubectl` like any other Kubernetes resource. Running `kubectl get managed` will print a list of all the resources managed by crossplane.
 
 <img src="images/crossplane-print-2.png" width="1000" />
 
-> Here we can see that two VPCs (`network.compute.gcp`), two subnets (`subnetwork.compute.gcp`), six DNS records (`resourcerecordset.dns.gcp`), two k8s clusters (`cluster.container.gcp`), and two node pools (`nodepool.container.gcp`) are running on GCP and a single database instance (`rdsinstance.database.aws`) is running on AWS.
+> Figure X: Here we can see that two VPCs (`network.compute.gcp`), two subnets (`subnetwork.compute.gcp`), six DNS records (`resourcerecordset.dns.gcp`), two k8s clusters (`cluster.container.gcp`), and two node pools (`nodepool.container.gcp`) are running on GCP and a single database instance (`rdsinstance.database.aws`) is running on AWS.
 
-All this is managed by a universal control plane running in Kubernetes (the so called `core-cluster`). 
+Combining the objects we saw on Figure X (in the _Test Application_-section) and the Crossplane cloud resources on Figure X we get the following setup:
 
-The following section will describe how to use this implementation of a  universal control plane and how a software team would develop and deploy services running in app clusters such as production-cluster.
+<img src="images/drawings_quote-setup-cloud-provider-final-k8s.png" width="1000" />
+
+> Figure X: On this illustration it is shown how the _Test Application_ (described in _Test Application_-section) runs on GCP and accesses a database in AWS. All elements with the Crossplane logo next it are objects/resources provisioned by Crossplane, while all elements with the ArgoCD logo next to it are objects/resources deployed and managed by ArgoCD. The text written in _Italic_ are the name of the crossplane-object managed in Kubernetes. The names match the objects printed in Figure X. 
+
+<!-- Scaling -->
+The production and staging environment runs completely separate on GCP. This project makes it possible to (theoretically at least) scale the number of workload-environments to infinity through the `core-cluster` and _IaC_ based _GitOps_. 
+
+<!-- Universal control -->
+All the resources and objects seen on Figure X are managed by ArgoCD and Crossplane, which is running in the Core cluster, acting as a universal control plane for provisioning infrastructure and deploying workload. 
+
+The following section will describe how to use this implementation of a universal control plane and how a software team would develop and deploy services running in `app clusters` such as production-cluster.
 
 ## 8.1. Use in practice
 
