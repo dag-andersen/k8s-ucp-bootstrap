@@ -62,16 +62,15 @@ A testing application will be described and used to demonstrate the unversial co
 - [9. Discussion and evaluation of implementation](#9-discussion-and-evaluation-of-implementation)
   - [9.1. Build pipelines are still required :white_check_mark:](#91-build-pipelines-are-still-required-white_check_mark)
   - [9.2. Extra cost :white_check_mark:](#92-extra-cost-white_check_mark)
-  - [9.3. Renaming resources :x:](#93-renaming-resources-x)
-  - [9.4. Not _everything_ can be check into code :white_check_mark:](#94-not-everything-can-be-check-into-code-white_check_mark)
-  - [9.5. Single surface area :white_check_mark:](#95-single-surface-area-white_check_mark)
-  - [9.6. Platform Engineering :white_check_mark:](#96-platform-engineering-white_check_mark)
-  - [9.7. Pets to Cattle :white_check_mark:](#97-pets-to-cattle-white_check_mark)
-  - [9.8. Streamlining your codebase :white_check_mark:](#98-streamlining-your-codebase-white_check_mark)
-  - [9.9. Bootstrapping Problem :white_check_mark:](#99-bootstrapping-problem-white_check_mark)
-  - [9.10. Multiple core-clusters (missing image) :white_check_mark:](#910-multiple-core-clusters-missing-image-white_check_mark)
-  - [9.11. Maturity level](#911-maturity-level)
-  - [9.12. Eliminating state](#912-eliminating-state)
+  - [9.3. Not _everything_ can be check into code :white_check_mark:](#93-not-everything-can-be-check-into-code-white_check_mark)
+  - [9.4. Single surface area :white_check_mark:](#94-single-surface-area-white_check_mark)
+  - [9.5. Platform Engineering :white_check_mark:](#95-platform-engineering-white_check_mark)
+  - [9.6. Pets to Cattle :white_check_mark:](#96-pets-to-cattle-white_check_mark)
+  - [9.7. Streamlining your codebase :white_check_mark:](#97-streamlining-your-codebase-white_check_mark)
+  - [9.8. Bootstrapping Problem :white_check_mark:](#98-bootstrapping-problem-white_check_mark)
+  - [9.9. Multiple core-clusters (missing image) :white_check_mark:](#99-multiple-core-clusters-missing-image-white_check_mark)
+  - [9.10. Maturity level :white_check_mark:](#910-maturity-level-white_check_mark)
+  - [9.11. Eliminating state](#911-eliminating-state)
 - [10. Conclusion](#10-conclusion)
 - [11. References](#11-references)
 
@@ -720,16 +719,15 @@ Each topic covered in this section will not be described in fine detail, but wil
 The discussion topics are:
 - Build pipelines are still required
 - Extra cost
-- Renaming resources
-- Not everything can be in code
-- Security | Single surface area
+- Not _everything_ can be check into code
+- Single surface area
 - Platform Engineering
-- Workload overview and infrastructure replicability
+- Pets to Cattle
 - Streamlining your codebase
 - Bootstrapping Problem
 - Multiple core-clusters
 - Maturity level
-- Eliminating state?
+- Eliminating state
 
 ## 9.1. Build pipelines are still required :white_check_mark: 
 
@@ -756,11 +754,7 @@ For the `core-cluster` to be running properly in GCP without issues 3 nodes of t
 
 Main point: Cost is something to keep in mind.
 
-## 9.3. Renaming resources :x:
-
-
-
-## 9.4. Not _everything_ can be check into code :white_check_mark:
+## 9.3. Not _everything_ can be check into code :white_check_mark:
 
 <!-- idea not possible -->
 When creating this project I wanted to have _everything_ declared in code, so I was spinning up everything from scratch with no prior setup.
@@ -773,7 +767,7 @@ Those 3 ip-addresses are hardcoded into all the DNS records YAML-files and in th
 
 So to conclude. With GCP and Nginx you need to reserve ip-addresses beforehand, if you want rest of the system to be fully declared as code. If the DNS records was not needed, then the reserved ip-addresses and hardcode ip-addresses was not needed, and _everything_ could be be stored as code.
 
-## 9.5. Single surface area :white_check_mark:
+## 9.4. Single surface area :white_check_mark:
 
 <!-- General issues with too many surface areas.  -->
 Running a business often requires many sets of logins to many different platforms and tools. Not all platforms/tools have a nice way of integration with each other, so often times emploeey have to juggle many different credentials. Given each employee a the correct amount of access rights can be a hassle. Very strict rules can result in slow development, because you constantly need to request access to new stuff should you need it. Very loose rules can result in security vulnerabilities because each employ have access to way more than they need (Violation of the Principle of least privilege). 
@@ -795,7 +789,7 @@ Combining ArgoCD and Crossplane you can create a workflow where external resourc
  -->
  
 
-## 9.6. Platform Engineering :white_check_mark: 
+## 9.5. Platform Engineering :white_check_mark: 
 
 Platform engineering is gaining popularity the last two years [[source](https://www.cncf.io/blog/2022/07/01/devops-vs-sre-vs-platform-engineering-the-gaps-might-be-smaller-than-you-think/)]. This topic is a standalone topic and is not the main focus of this paper, but we just quickly want to highlight how control planes like _crossplane_ can modernize your infrastructure, by embracing Platform Engineering and self-service. Crossplane has the concept of [Composite Resources](https://crossplane.io/docs/v1.9/concepts/composition.html#composite-resources), that works an abstraction layer between the actual managed resource running on the cloud provider and the resource offered by the infrastructure team to the development teams. The developer then do not have to worry about where the database runs. The developer just request a database in YAML, and the rest is handled by the abstraction created by the infrastructure/platform team. The abstraction becomes a platform for the developer to use - and they can self-service/provision infrastructure by using the provided abstraction. Developers will only interact directly with kubernetes and not any other cloud platform/portal.
 
@@ -804,7 +798,7 @@ _"This conversation is less about crossplane vs terraform. This is more about us
 The infrastructure team has full control over what is possible through abstraction layer accessible from a this single surface area (as explained in the section above).
 
 
-## 9.7. Pets to Cattle :white_check_mark: 
+## 9.6. Pets to Cattle :white_check_mark: 
 
 <!-- un-utilized resources -->
 One challenge big companies can have when their developers has direct access to the cloud resources is that cloud services gets created and forgotten about. These resources may have been created by accident or just used for a quick experiment. Other reasons could be that the resource is irrecoverable because the Terraform state was lost. The company ends up being charged for these un-utilized resources each month, because the company lack the knowledge if the services are actually used or not, and the company is too scared of deleting the resources because they may be in use. Tools like Crossplane and ArgoCD can limit or mitigate this risk.
@@ -815,13 +809,13 @@ ArgoCD has a feature to display all "orphan" resources that is not handled by Ar
 <!-- Pets to Cattle -->
 If you lose trust in the reproducibility of your infrastructure you start treating you infrastructure as pets, that you have to protect at all cost. Having a `core cluster` that managed many `app clusters` helps you go from [_Pets to Cattle_](https://www.youtube.com/watch?v=Od7e6hqis7A&ab_channel=PrismaCloudbyPaloAltoNetworks). The easier it is to spin up new cluster the less we will treat our infrastructure as "pets" [[source](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)]. The implementation in this paper can in theory manage an infinite number of disposable `app clusters`.
 
-## 9.8. Streamlining your codebase :white_check_mark: 
+## 9.7. Streamlining your codebase :white_check_mark: 
 
 The setup described in this paper is build only using 2 file types: `.yaml` and `makefiles`. `.yaml` is used for declaring the state of the whole infrastructure-configuration - while `makefiles` are only for the initial bootstrapping. Everything is declared as _Infrastructure as Code_ and check into git (_GitOps_).
 
 "Since Crossplane makes use of Kubernetes, it uses many of the same tools and processes, enabling more efficiency for users - without the need to learn and maintain entirely new tools" [[source](https://blog.upbound.io/outgrowing-terraform-and-migrating-to-crossplane/)]. This creates and extremely streamlined infrastructure, because it does not require knowledge about e.g Terraform, Ansible, or multiple scripting languages. I will consider this a huge benefit of this setup. 
 
-## 9.9. Bootstrapping Problem :white_check_mark: 
+## 9.8. Bootstrapping Problem :white_check_mark: 
 
 Every automatic process require some manual task to start the process. This initial task/command can not be declarative, since a command is by definition is imperative.
 
@@ -831,7 +825,7 @@ The bootstrapping done in this implementation does not touch logging, monitoring
 
 The main point is that we can't remove bootstrapping entirely - but we can try to reduce it as much as possible. We would argue that this bootstrapping is fairly minimal, since it only does 2 steps. 1: Spin up core-cluster (locally or on cloud provider), 2: install and setup ArgoCD.
 
-## 9.10. Multiple core-clusters (missing image) :white_check_mark: 
+## 9.9. Multiple core-clusters (missing image) :white_check_mark: 
 
 <!-- problem -->
 Running multiple instances of a `core-cluster`s simultaneously doesn't work well. You can easily spin up multiple `core-cluster`s at the same time - E.g. running a `core-cluster` on GCP and running another instance one locally. The problem is that they each have their own internal desired state and may work against each other. One cluster may want to create a given resource on a cloud provider, while another may want to delete that resource. This results in race-conditions and unpredictable behaviour.
@@ -841,29 +835,30 @@ So the next question is how you test a configuration for the `core-cluster` if y
 
 //insert image maybe //
 
-## 9.11. Maturity level
+## 9.10. Maturity level :white_check_mark: 
 
-Currently, the biggest limitation of using crossplane is the lack of providers and feature-set each provider offers. 
+Currently, the biggest limitation of using crossplane is the lack of providers and feature-set each provider offers.
 
 <!-- rely on providers -->
-
-When using kubernetes as a universal control plane for all of your infrastructure you rely heavily on the stability and flexibility of the controllers made by big cooperations or open-source communities. When you use ArgoCD you put all your faith in that its controller correctly deploy your services and does not randomly delete arbitrary pods. When you use Crossplane you rely on the controller/providers correctly provision the requested resource and managing their lifecycle correctly. You as a user of these control plane this is out of your hands and you rely sole only the tools. This is the same limitation that Terraform has. Terraform is only as good as the providers that integrate with Terraform.
+When using kubernetes as a universal control plane for all of your infrastructure you rely heavily on the stability and flexibility of the controllers made by big cooperations or open-source communities. When you use ArgoCD you put all your faith in that its control plane correctly deploy your services and does not randomly delete arbitrary pods. When you use Crossplane you rely on the controller/providers correctly provision the requested resource and managing their lifecycle correctly. You as a user of these control plane it is out of your hands and you rely sole only the tools. This is the same limitation that Terraform has. Terraform is only as good as the providers that integrate with Terraform.
 
 **Examples of observed some issues when working with ArgoCD and Crossplane**
 
-- Digital Ocean's provider can not delete resources on their platform. This means crossplane can only be used to spin up e.g. databases and kubernetes clusters - but not delete them afterwards. This partially removes the purpose of crossplane. This is obviously not intentional, and will probably be fixed in the near future. Overall this is just an example of providers not being mature and ready for control planes like crossplane.
+- Digital Ocean's crossplane provider (v0.1.0) can not delete resources on their platform (Issue is reported here [[s](https://github.com/crossplane-contrib/provider-digitalocean/issues/55)]). This means crossplane can only be used to spin up e.g. databases and kubernetes clusters - but not delete them afterwards. This makes the provider close to useless, because you can not control the full life-cycle of resources. This is obviously not intentional, and will probably be fixed in the near future. However this is an good example of cloud-providers not being mature and ready for control planes like crossplane.
 
-- ArgoCD can not natively deploy resources when the generated yaml-files gets too large (as described here : https://github.com/argoproj/argo-cd/issues/8128). This is completely out of your hands. So if you want to deploy certain helm-charts that generate long yaml files then you instead have to it find a custom workaround online or deploy it manually. This can be quite painful, since if ArgoCD cant deploy _every single resource_ declared in your infrastructure its useful ness is greatly reduced. 
+- ArgoCD can not natively deploy resources when the generated yaml-files gets too large (Issue is reported here [[s](https://github.com/argoproj/argo-cd/issues/8128)]). This is completely out of your hands. So if you want to deploy certain helm-charts that generate long yaml files then you instead have to it find a custom workaround online or deploy it manually. This can be quite painful, since if ArgoCD can't deploy _every single resource_ declared in your infrastructure you have to introduce custom logic for edge cases, which doesn't scale well. 
 
-- ArgoCD can not connect to a external cluster based on data stored as a secret in kubernetes. Argo can only connect to external clusters by running `argocd add cluster <context-name-found-in-kubeconfig>` on your machine with a kube-config available. This goes against the idea of declaring everything in yaml by forcing the user to call a shell command imperatively. (described here:https://github.com/argoproj/argo-cd/issues/4651).
+- ArgoCD can not connect to a external cluster based on data stored as a secret in kubernetes (described here [[s](https://github.com/argoproj/argo-cd/issues/4651)]). Argo can only connect to external clusters by running `argocd add cluster <kubeconfig-context-name>` on your machine with a kubeconfig available. This goes against the idea of declaring everything in YAML by forcing the user to call a shell command imperatively. (described here:https://github.com/argoproj/argo-cd/issues/4651).
 
-## 9.12. Eliminating state
+## 9.11. Eliminating state
 
 This is one of the most interesting topics of the discussion. One of the biggest selling points moving away from Terraform is the state you have to manage, so if a control plane like crossplane has not improved that process, then we have not gained much. 
 
 With terraform you store a state each time you provision any cloud resource. That resources has to be stored a shared place and make sure it is up to date and only the right people have access to it. Crossplane doesn't not handle state in the same way. Terraform looks at the terraform-state, your local code, and what is currently running in the cloud. <!-- check med Zander --> Crossplane only looks at what is currently running in the cloud. If the requested resource does not exist, crossplane will create it. If the requested resource already exist, it will not create anything. This works with wonders with simple resources like DNS-records on GCP, but if you look at resources that needs connections details like managed databases and Kubernetes clusters, it gets more interesting! What the crossplane provider does with each resource if it already exists depends on the individual resource.
 
 If crossplane requests a GKE Cluster _that does not already exist_ it will provision a cluster and store the connection details (kubeconfig) as a secret in the cluster with Crossplane installed. If the GKE cluster already exists it will not create anything, but just pull down the connection details (kubeconfig). That meant that if the `core cluster` gets deleted and recreated, the kube-config to the `app clusters` _will not_ be lost.
+
+This can also be seen if you just manually delete a secret generated by crossplane. Crossplane will just detect it an reconsile and recreate the secret. No state lost.
 
 This is not the case with database connection details. The password will only be pulled down on creation, but never again. This is the case with both the GCP and AWS crossplane provider. If crossplane requests a database _that does not already exist_ it will provision the database and store all the connection details it in the cluster. If crossplane requests a database _that already exist_ it will pull down all connection details besides the password and store it in the cluster. That means that if the `core cluster` gets deleted and recreated, the password to the database _will_ be lost. (This is intensional behaviour by crossplane for security reasons [[source](https://github.com/crossplane-contrib/provider-gcp/issues/397#issuecomment-948758190)])
 
