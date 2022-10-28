@@ -250,7 +250,7 @@ The frontend is a website where you can post and retrieve "quotes". The quotes a
 
 This system is built to be run in Kubernetes, and the repository already contains YAML-files. The system uses a Postgres database running in a standalone pod. To showcase the implementation of a universal control plane's ability to provision database resources on cloud-providers, I have replaced the Postgres-database-pod with a managed database running in a cloud provider. Besides that, I have not changed the overall architecture. 
 
-<img src="images/drawings_quote-setup-versions.png" width="800" />
+<img src="images/drawings_quote-setup-versions-k8s.png" width="800" />
 
 This setup is supposed to represent an actual production-ready application that a small business may want to run on a cloud provider.
 
@@ -594,7 +594,7 @@ In this example, we can see how we specify the secret named `gcp-database-conn`,
 
 > Note: `argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true` is added to ensure that ArgoCD does not fail the deployment, because `Syncer` does not exist as custom resource at deployment time. This can happen when `Syncer`-manifest is *applied* before the `manifest-syncer` is deployed. ArgoCD will fix the failing resources with eventual consistency. 
 
-<img src="images/drawings_manifest-syncer.png" width="750" />
+<img src="images/drawings_manifest-syncer-k8s.png" width="750" />
 
 > Figure X: A visualization of how credentials are generated and copied to the app clusters. 
 
@@ -613,7 +613,7 @@ Continuing from the _Test Application_-section, we now have all the pieces to ru
 In this demonstrated instance, I have two environments running: production and staging. Each environment runs in its own VPN (and subnetwork) and has its own subdomain on GCP. Both environments can connect to a shared database, either running on AWS or GCP. The demonstrations use AWS to show that this kind of setup works across different cloud providers. 
 <!-- As described in the _XXXX_ section, each environment runs a simple frontend service, which calls a backend service, which then stores its data on the database. In practice, this results in an `ingress` object, two `service` objects, and two `deployment` objects per environment. -->
 
-<img src="images/drawings_quote-setup-cloud-provider-final.png" width="1000" />
+<img src="images/drawings_quote-setup-cloud-provider-final-k8s.png" width="1000" />
 
 > On this illustration it is shown how the _Test Application_ (described in _Test Application_-section) now runs on GCP and accesses a database in AWS. All the blue boxes are objects/resources provisioned by Crossplane, while all the yellow/beige boxes are objects/resources deployed and managed by ArgoCD.
 
