@@ -21,7 +21,7 @@ delete-app-%:
 wait-for-cluster-%: context
 	@while ! kubectl wait managed -l "creation=crossplane" --for=condition=READY --timeout=600s; do echo "Waiting for crossplane resources to get ready" && sleep 10; done
 	@make wait-for NAME=crossplane.io/gcp-k8s-np-$*				KEY=RUNNING
-	@make wait-for NAME=crossplane.io/gcp-k8s-$*					KEY=RUNNING
+	@make wait-for NAME=crossplane.io/gcp-k8s-$*				KEY=RUNNING
 
 wait-for-aws-database: context
 	@make wait-for NAME=aws-database-postgres-instance	KEY=available

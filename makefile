@@ -38,7 +38,7 @@ start-core-local:
 	@$(MAKE) -C ./kind											start-with-ingress 				cluster-name=core-cluster
 	@$(spin) "Argo Install" 	-- $(MAKE) -C ./core-cluster	argo-install					cluster-name=core-cluster
 	@$(spin) "Argo CLI login"	-- $(MAKE) -C ./core-cluster	argo-login						cluster-name=core-cluster
-	@$(MAKE) -C ./core-cluster									argo-ui-localhost-port-forward	cluster-name=core-cluster
+	@							   $(MAKE) -C ./core-cluster	argo-ui-localhost-port-forward	cluster-name=core-cluster
 	@$(spin) "Bootstrapping"	-- $(MAKE) -C ./core-cluster	argo-bootstrap-kind				cluster-name=core-cluster
 
 start-core-gcp:
@@ -68,6 +68,9 @@ start-app-local:
 	@$(MAKE) -C ./app-cluster	argo-app-bootstrap				cluster-name=app-cluster
 
 # Utils
+
+get-prometheus-creds:
+	@printf "prometheus - username: admin, password: $$(kubectl get secret --namespace monitoring prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo)\n"
 
 ### Argo Utils
 
