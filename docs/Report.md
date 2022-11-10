@@ -90,10 +90,10 @@ A testing application will be described and used to demonstrate the unversial co
   - [11.3. Not _everything_ can be checked into code](#113-not-everything-can-be-checked-into-code)
   - [11.4. Single surface area](#114-single-surface-area)
   - [11.5. Platform Engineering](#115-platform-engineering)
-  - [11.6. Pets to Cattle](#116-pets-to-cattle)
+  - [11.6. Pets to Cattle : Denne title passer bedre til eliminating state.](#116-pets-to-cattle--denne-title-passer-bedre-til-eliminating-state)
   - [11.7. Streamlining your codebase](#117-streamlining-your-codebase)
   - [11.8. Bootstrapping Problem](#118-bootstrapping-problem)
-  - [11.9. Multiple core-clusters (missing image)](#119-multiple-core-clusters-missing-image)
+  - [11.9. Multiple core-clusters](#119-multiple-core-clusters)
   - [11.10. Maturity level](#1110-maturity-level)
   - [11.11. Eliminating state](#1111-eliminating-state)
 - [12. Conclusion](#12-conclusion)
@@ -814,7 +814,7 @@ Kelsey Hightower from Google puts it like this: _"This conversation is less abou
 
 _So, to conclude:_ Crossplane enables an infrastructure team to build a engineering platform, where the developers can self-service cloud resources provided by the infrastructure team. The infrastructure team has full control over what resources are available in the organisation and how they are configured behind the scene. 
 
-## 11.6. Pets to Cattle
+## 11.6. Pets to Cattle : Denne title passer bedre til eliminating state.
 
 <!-- un-utilized resources -->
 One challenge big companies can have when their developers have direct access to the cloud resources is that cloud services get created and forgotten about. These resources may have been created accidentally or just used for a quick experiment. Other reasons could be that the resource is irrecoverable because the Terraform state was lost. The company ends up being charged for these un-utilized resources each month because it lacks the knowledge if the services are actually used or not, and the company is too scared of deleting the resources because they may be in use. Tools like Crossplane and ArgoCD can limit or mitigate this risk.
@@ -845,17 +845,24 @@ The bootstrapping in this implementation does not touch logging, monitoring, ing
 
 _So, to conclude:_ We can't remove bootstrapping entirely - but we can try to reduce it as much as possible. I would argue that this bootstrapping is fairly minimal since it only does 2 steps. _1_: Spin up core-cluster (locally or on cloud provider), _2_: Install and setup ArgoCD.
 
-## 11.9. Multiple core-clusters (missing image)
+## 11.9. Multiple core-clusters
 
-<!-- problem -->
+<!-- why would you? -->
+Just like you want a production cluster and a staging cluster of the app clusters, so you can test software on the staging cluster before it goes into production - you probably also want to test software before it goes into production in the core cluster. E.g. how do you test a new version of Crossplane. It can be risky updating software on the core cluster, because the app clusters depend on it. This would indicate you probably also want a staging/testing/experimentation version of the core cluster, where you can test and experimental with software before it goes onto the stable version of the core cluster.
+
+<!-- race-conditions -->
 Running multiple instances of a `core-clusters` simultaneously does not work well. You can easily spin up multiple `core-cluster`s at the same time - E.g., running a `core-cluster` on GCP and running another instance locally. The problem is that they each have their own internal desired state and may work against each other. One cluster may want to create a given resource on a cloud provider, while another may want to delete that resource. This results in race conditions and unpredictable behavior.
 
-<!-- solution -->
-So, the next question is how you test a configuration for the `core-cluster` if you cannot spin up a new one without it competing with the current version running. The only way to allow multiple `core-cluster`s to be run simultaneously is to run a complete copy of all your resources. So the copy could be named `core-cluster-copy`, which is then created, e.g., a `prod-cluster-copy` and `aws-database-copy` and so on. It is fairly straightforward code-wise, so it is doable, but this would effectively double your infrastructure costs if you wanted to do a proper test of the `core-cluster`. 
+<!-- duplicating everything. -->
+So, the next question is how you test a configuration for the `core-cluster` if you cannot spin up a new one without it competing with the current version running. The only way to allow multiple `core-cluster`s to be run simultaneously is to run a complete copy of all your resources. So the copy could be named `core-cluster-experimental`, which is then created, e.g., a `prod-cluster-experimental` and `aws-database-experimental` and so on. It is fairly straightforward code-wise, so it is doable, but this would effectively double your infrastructure costs if you wanted to do a proper tests and experiments on the `core-cluster`.
 
-//insert image maybe //
+<img src="images/drawings_multi-core.png" width="1000" />
 
-_So, to conclude:_ It is difficult to test/experiment with the core cluster. Depending on how you do it, running two at the same time will either create race conditions or duplicate your entire infrastructure which may be unfeasible depending on your organization size and budget. There is no good solution for this.
+But the biggest drawback of running a complete copy of you entire infrastructure is that it adds a lot of complexity. Especially when it comes to managing a separate configuration for a duplicate cluster. One have to figure out a proper way of telling `prod-cluster-experimental` controlled by `core-cluster-experimental`, to use the ip-address/hostname of the `aws-database-experimental` and not the normal `aws-database`. Everything is managed with infrastructure as code and checked into git. I imagine this becoming a nightmare to maintain which a lot of small edge cases where things can go wrong. This only gets worse the more infrastructure you organization handles. If you at the same time wants to automate this process it gets even more complex. Solving this issue is beyond the scope of this project.
+
+<!-- If i have to take a guess on how one would handle this it would be that all software in the core cluster should be able to run in "dry-mode". The process would be close down the stable core cluster. Boot up an experimental version where everything run in dry-mode. After seeing that evertyhing works as intendend. Then delete the experimental version and boot up the stabel version, but now with the updated control planes (not running in dry-mode) -->
+
+_So, to conclude:_ It is difficult to test/experiment with the core cluster. Depending on how you do it, running two at the same time will either create race conditions or duplicate your entire infrastructure which may be unfeasible or unmaintainable depending on your organization size and budget. There is no good solution for this and i consider this one of the biggest drawbacks of running a `core-cluster` for managing the rest of you infrastructure. 
 
 ## 11.10. Maturity level
 
