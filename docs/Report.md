@@ -907,6 +907,45 @@ The golden hammer approach
 
 <!-- The `app clusters` are stateless and can be treated as "cattle". As long as you do not store persistent storage inside them, they are stateless. On the other hand, in this implementation, the `core cluster` is stateful and cannot be deleted because secrets will be lost. If the secrets were stored in some sort of secret-vault instead, the `core cluster` could be stateless as well and could be deleted arbitrarily. -->
 
+
+
+
+
+<!-- Control planes are gaining popularity. -->
+<!-- They are here to stay. If this iteration is not good, they next on will. -->
+
+This project is done in collaboration with Eficode. In order for Eficode to recommend transitiong to control plane managed infrastrcture, they need to know the benefits and the implcations such a system may bring. 
+
+This paper implements a universal control plane for handling both software deployment and cloud resources and discuss the implications.
+
+
+<!-- Terraform state is difficult to manage -->
+<!-- configuration drift -->
+
+<!-- This paper presents an implementation of a universal control plane for provisioning cloud resources and deploying software. -->
+
+It handles the full lifecycle of cloud resources and container workload. 
+
+
+<!-- building a demo application to show case how you would run that on a cloud provider through the universal control plane. -->
+
+
+Main pros:
+- Removed state management
+  - Pets to Cattle
+  - No issues with configuration drift.
+- Streamned infrastrcture
+  - Everything moved into Kubenretes.
+  - Everything checked into Git.
+
+Main Cons:
+- Extra complexity
+  - GitOps is just more complex than using standard deployment pipelines. 
+  - Building a platform for engineers are adding extra abstraction layers and thus creating extra complexity. 
+- Difficult to test core cluster in practice. 
+- Experimental. Early days.
+  - The CNCF projects are in active development, and some features included in the projects are either experimental or not in its early phases. 
+
 # 13. References
 
 
