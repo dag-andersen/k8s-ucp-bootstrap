@@ -12,7 +12,6 @@ cluster-exists:
 
 delete-cluster:
 	gcloud beta container clusters delete $(cluster-name) --zone $(zone)
-# gcloud dns record-sets delete stage.dagandersen.com. --type=A --zone=dagandersen-zone || true
 	kubectl config delete-context $(cluster-name) || true
 
 create-cluster:
