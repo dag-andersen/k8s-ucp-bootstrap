@@ -112,7 +112,7 @@ This explains the concept of control planes and how to build kubernetes as an un
   - [8.1. Terraform](#81-terraform)
     - [8.1.1. Barrier of entry](#811-barrier-of-entry)
     - [8.1.2. Challenges with managing terraform state](#812-challenges-with-managing-terraform-state)
-    - [8.1.3. State automation](#813-state-automation)
+    - [8.1.3. State management with control planes.](#813-state-management-with-control-planes)
     - [8.1.4. Crossplane as an alternative](#814-crossplane-as-an-alternative)
 - [9. Demonstration Application](#9-demonstration-application)
 - [10. Implementation](#10-implementation)
@@ -147,7 +147,7 @@ This explains the concept of control planes and how to build kubernetes as an un
 
 # 4. Dictionary and abbreviations
 
-It is assumed that the reader is familiar with Kubernetes, its concepts, and terminology. Furthermore it a assumed that reader is familiar with Terraform, how it manages its state, and how Terraform providers work. To avoid confusion, here is a list of the additional terms and aberration used in this paper. 
+It is assumed that the reader is familiar with Kubernetes, its concepts, and terminology. Furthermore it a assumed that reader is familiar with Terraform, how it manages its state, and how Terraform providers work. In addition to that there is a list of the additional terms and aberration used in this paper. 
 
 <!-- - CaC? [[source]](https://octopus.com/blog/config-as-code-what-is-it-how-is-it-beneficial#:~:text=Config%20as%20Code%20(CaC)%20separates,version%20control%20for%20your%20configuration.) -->
 - **Infrastructure as Code (IaC)**: IaC is the concept of managing and provisioning of infrastructure through code instead of through manual processes [[s](https://www.redhat.com/en/topics/automation/what-is-infrastructure-as-code-iac)].
@@ -169,10 +169,10 @@ It is assumed that the reader is familiar with Kubernetes, its concepts, and ter
 Since the creation of Kubernetes, we are seeing an increasing number of CNCF projects built as control planes (FluxCD, ArgoCD, Crossplane, whatever...). The concept of a control plane is built on the idea of service that watches a declared state and make sure that a system's actual state reflects the declared state. If the desired state changes, the control plane ensures that the new declared state is automatically reflected in the actual state.
 
 <!-- ecosystem and now also external resources? -->
-At its core, Kubernetes stores a declared state in its etcd-database, and different services watch this state and make sure the actual state reflects the declared state. Kubernetes can be used as an platform for control planes, because Kubernetes' API server can be queried to manipulate the state of declared Kubneretes Objects. Control planes can call the API server and manage the life cycles of it's custom Kubernetes Objects (`CustomResourceDefinitions`[[s]](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#customresourcedefinitions)). During the last years, new control planes (e.g. Crossplane) have emerged that also manage the state of cloud resources (e.g. databases and Kubernetes clusters). This means control planes like Crossplane can be used to replaced infrastructure tools like Terraform, by controlling the resources' life cycle from inside Kubernetes. 
+At its core, Kubernetes stores a declared state in its etcd-database, and different services (control plane components) watch this state and make sure the actual state reflects the declared state. Kubernetes can be used as an platform for control planes, because Kubernetes' API server can be queried to manipulate the state of its declared Kubernetes Objects. Control planes can call the API server and manage the life cycles of it's custom Kubernetes Objects (CRD[[s]](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#customresourcedefinitions)). Control planes in Kubernetes have proven to be good at managing internal state (e.g scheduling and deploying containers), but during the last years, new control planes like Crossplane that manage the state of cloud resources (e.g. databases and Kubernetes clusters) have emerged. This means control planes like Crossplane can be used to replaced infrastructure tools like Terraform, by controlling the cloud resources' life cycle from inside Kubernetes. 
 
 <!-- big question -->
-Now the question is if multiple control planes can be combine to create a universal control plane for handling all kinds of state, all managed from within Kubernetes? This paper will implement a universal control plane for handling both internal state software deployment and cloud resources and discuss the implications.
+Now the question is if multiple control planes can be combine to create a universal control plane for handling all kinds of state, all managed from within Kubernetes. This paper will implement a universal control plane for handling both internal state (e.g. containers) and external state (e.g. cloud resources) and discuss the challenges and implications.
 
 # 6. Motivation
 
@@ -183,17 +183,12 @@ This paper is written in collaboration with Eficode. Eficode is a consulting com
 Eficode has stated their concern about how Terraform does not scale well for big organizations in their blogpost: [Outgrowing Terraform and adopting control planes](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes). Terraform has proven to be a stable and reliable infrastructure tool for many years now, but it may not always be the best solution. New technologies get showcased, and new paradigms emerge. 
 
 <!-- emerging paradigm -->
-Control planes are a new paradigm in the realm of DevOps and infrastructure management. Many of the technologies/tools leveraging the concept of control planes are still considered new and do not have many years of proven use. Even though many of the tools/systems look promising, it can be difficult to justify the investment in transitioning a DevOps infrastructure to this new paradigm. 
+Control planes are a new paradigm in the realm of DevOps and infrastructure management [[source](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)]. Many of the technologies/tools leveraging the concept of control planes are still new and do not have many years of proven use. Even though such tools/systems can look promising, it can be difficult to justify the investment in transitioning a DevOps infrastructure to this new paradigm. 
 
 <!-- recommendation -->
 In order for Eficode to recommend customers to transition infrastructure managed by control planes instead of tools like Terraform, it is essential to know the implications of such changes and what kind of challenges such a change might bring.
 
-TODO:Det her skal skrive bedre
-
-The design and implementation presented in this paper is created and written by myself, and Eficode has not been part of it. This paper will present a prototype of universal control plane for handling software deployment and cloud resources. The prototype allows Eficode to get a better understanding of the implications transitioning to control-plane-based infrastructure-management. 
-
-
-
+The design and implementation presented in this paper is created and written by myself, and Eficode has not been part of it. The prototype presented and discussed in this paper allows Eficode to get a better understanding of the implications transitioning to control-plane-based infrastructure-management. 
 
 
 <!-- arguments for control planes / Crossplane ------------------------------------------------------
@@ -215,26 +210,35 @@ Control planes are self-healing and they automatically correct drift.[[source](h
 
 Control plane means something different depending on the context.
 
-- **Control plane (as a concept/paradigm)** refers to the idea of a service that watches a declared state and make sure that a system's actual state reflects the declared state. A control plane reconciles the current state to match a desired state. Control planes follow the Reconciler pattern. Control planes are self-healing and they automatically correct drift [[source](https://crossplane.io/)].
+- **Control plane (as a concept/paradigm)** refers to the idea of a service that watches a declared state and make sure that a system's actual state reflects the declared state. A control plane reconciles the current state to match a desired state. Control planes follow the Reconciler pattern. Control planes are self-healing and they automatically correct drift [[s](https://crossplane.io/)].
 - **Control plane (as a Kubernetes Controller)** refers to an application/service implemented as a control plane (the concept). An example of this is Kubernetes' kube-scheduler (that schedules pods/containers based on a declared state) [[s]](https://kubernetes.io/docs/concepts/overview/components/#kube-apiserver) or ArgoCD (a GitOps tool introduced in this paper). 
 - **Control plane (as a node)** refer to a node where all kubernetes' default control plane components run (e.g. the kube-scheduler that schedules pods). Kubernetes' default control plane components can be run on any node in the cluster, but they often run on the same node and user containers do not run on this node [[s]](https://kubernetes.io/docs/concepts/overview/components/). This node is often refereed to as the control plane (node).
 <!-- **Control plane**: Control planes is based on the Reconciler pattern. A control plane is a service that continuously checks the difference between the desired state and the current state and if there is a deviation, a it tries to take action to make the current state reflect the desired state. -->
 
-When i refer to building a system that utilized kubernetes as an _universal control plane_, I refer to a control plane as a _concept_. I think about kubernetes as an platform for hosting multiple control planes (as applications) that manages all kinds of state (both external and internal state). The universal control plane stores a single state (stored in kubernetes' etcd-database) where multiple implementations of control planes reconciles the current state to match a desired state.
+When i refer to building a system that utilizes kubernetes as an _universal control plane_, I refer to a control plane as a _concept_. I think about kubernetes as an platform for hosting multiple control planes (as applications) that manages all kinds of state (both external and internal state). The universal control plane stores a single state (stored in kubernetes' etcd-database) where multiple implementations of control planes reconciles the current state to match a desired state.
 
+
+<!-- 
 In this paper I build an implementation of a universal control plane in kubernetes, where the user can manage both internal state (e.g. _Pods_) and external state (e.g. databases and other Kubernetes clusters).
+-->
 
 # 8. Declarative vs Imperative
 
-When building a universal control plane for handling all our infrastructure, we need to base it on some core design ideas. First of all, we need to want to build our infrastructure as Infrastructure as Code (IaC) using as much declarative configuration as possible. We want to limit the amount of imperative commands and long scripts of sequential steps as much as possible. 
+<!--
+When building a universal control plane for handling all our infrastructure, we need to base it on some core design ideas. First of all, we need to want to build our infrastructure as Infrastructure as Code (IaC) using as much declarative configuration as possible. We want to limit the amount of imperative commands and long scripts of sequential steps as much as possible.-
 
 Declarative and imperative are two different DevOps paradigms [[s]](https://ubuntu.com/blog/declarative-vs-imperative-devops-done-right). In the declarative paradigm developers focus on _what_ the desired state of the system should be. In the imperative paradigm the developer focus _how_ a desired state is created.
+-->
 
-<!-- imperative setup scales poorly  -->
+An automation system (like the universal control plane) can be designed and implemented in two different paradigms: declarative or imperative [[s]](https://ubuntu.com/blog/declarative-vs-imperative-devops-done-right). In the declarative paradigm developers focus on _what_ the desired state of the system should be. In the imperative paradigm the developer focus _how_ a desired state is created.
+
+<!-- imperative setup scales poorly -->
 The imperative paradigm scales poorly in large software environments. "While using an imperative paradigm, the developer is responsible for defining exact steps which are necessary to achieve the end goal, such as instructions for software installation, configuration, and database creation" [[s]](https://ubuntu.com/blog/declarative-vs-imperative-devops-done-right). The developer has to carefully plan every step and the sequence in which they are executed. Suppose a change in the setup has to be made. In that case, the developer has to carefully make sure the change doesn't break something else in the sequence of steps - especially if there are conditional-statements, meaning there are multiple possible paths through the sequence of steps. "Although suitable for small deployments, imperative DevOps does not scale and fails while deploying big software environments, such as OpenStack" [[s]](https://ubuntu.com/blog/declarative-vs-imperative-devops-done-right)
 
+
+<!-- Den her block er måske useless  -->
 <!-- declarative configuration is a higher abstraction -->
-Creating a declarative configuration is a higher abstraction than declaring a configuration with sequential imperative steps. Every declarative API encapsulates an imperative API underneath. For a declarative API to work, there needs to be some code behind the scenes that parses the files and acts upon them in an imperative way. Declarative programming can not stand alone because there will always be a sequence of imperative steps executing some operations on a machine [[s]](https://edward-huang.com/distributed-system/programming/2021/02/28/why-you-should-always-design-your-api-declaratively-instead-of-imperative/),[[s]](https://ubuntu.com/blog/declarative-vs-imperative-devops-done-right). Even though creating a declarative API/configuration is often time more demanding creating a imperative API/configuration we see it all across software development, from CSS in web development [[s]](https://edward-huang.com/distributed-system/programming/2021/02/28/why-you-should-always-design-your-api-declaratively-instead-of-imperative/) to Terraform in infrastructure management. 
+Creating a declarative configuration is a higher abstraction than declaring a configuration with sequential imperative steps. Every declarative API encapsulates an imperative API underneath. For a declarative API to work, there needs to be some code behind the scenes that parses the files and acts upon them in an imperative way. Declarative programming can not stand alone because there will always be a sequence of imperative steps executing some operations on a machine [[s]](https://edward-huang.com/distributed-system/programming/2021/02/28/why-you-should-always-design-your-api-declaratively-instead-of-imperative/),[[s]](https://ubuntu.com/blog/declarative-vs-imperative-devops-done-right). Even though creating a declarative configuration is often time more demanding creating a imperative configuration we see it all across software development, from CSS in web development [[s]](https://edward-huang.com/distributed-system/programming/2021/02/28/why-you-should-always-design-your-api-declaratively-instead-of-imperative/) to Terraform in infrastructure management. 
 
 <!--
 Why gitOps?
@@ -248,48 +252,60 @@ https://blog.mergify.com/gitops-the-game-changer/
 
 ## 8.1. Terraform
 
-A very popular tool that is based on the idea of IaC and declarative configuration is Terraform. Terraforms' popularity started in 2016-2017 and has been growing ever since. Now Terraform has integration with more than 1700 providers [[s]](https://www.hashicorp.com/resources/the-story-of-hashicorp-terraform-with-mitchell-hashimoto). So the natural question is now, why bother with control planes when tools like Terraform exist? This section describes some of the issues related to using Terraform and why it might be better to use control planes for handling external resources. 
+A very popular tool that is based on the idea of IaC and declarative configuration is Terraform. Terraforms' popularity started in 2016-2017 and has been growing ever since [[s]](https://www.hashicorp.com/resources/the-story-of-hashicorp-terraform-with-mitchell-hashimoto).
 
-Terraform is an Infrastructure as Code tool that lets you define both cloud and on-premises resources in configuration files that you can version, reuse, and share. You can then use a consistent workflow to provision and manage all of your infrastructure throughout its lifecycle. Terraform can manage all kinds of resources, from low-level components to huge cloud provider-managed services [[s]](https://www.terraform.io/intro). Terraform has the concept of terraform-providers, where service providers (e.g. Google Cloud Platform) can create integrations with Terraform and let the user manage the providers' services through the HashiCorp Configuration Language (HCL). "Providers enable Terraform to work with virtually any platform or service with an accessible API" [[s]](https://www.terraform.io/intro). 
+Terraform lets you define both cloud and on-premises resources in configuration files that you can version, reuse, and share. [[s]](https://www.terraform.io/intro).
+One of the main use case is often provisioning infrastructure on cloud providers [[s]](https://www.varonis.com/blog/what-is-terraform).
+Terraform is responsible for handling the entire lifecycle of the resources: from creation to deletion. [[s]](https://www.terraform.io/intro)
+
+Terraform is cloud-agnostic and can provision cloud resources across all the big cloud providers (e.g. AWS, Azure, and GCP) [[s]](https://www.varonis.com/blog/what-is-terraform).
+Terraform has the concept of terraform-providers, where service providers (e.g. GCP) can create integrations with Terraform and let the user manage the providers' services through the HashiCorp Configuration Language (HCL). "Providers enable Terraform to work with virtually any platform or service with an accessible API" [[s]](https://www.terraform.io/intro). 
+
+Even though Terraform is popular an versatile it might not be the best way to manage infrastructure. This section describes some of the issues related to using Terraform and why it might be better to use control planes for handling cloud resources. 
 
 ### 8.1.1. Barrier of entry 
-The only practical way of using Terraform in teams is to store the state in some shared place. This is commonly done on a cloud provider in some kind of _Object storage_. Setting this up can be a big hurdle to overcome if it is your first time or you are not an experienced developer. So before you can start your project, you first need to solve the problem of _how and where to store the Terraform state_, before you can even start developing anything in your team. 
+The only practical way of using Terraform in teams is to store the state in some shared place [[s]](https://adambrodziak.pl/terraform-is-terrible). This is commonly done on a cloud provider in some kind of _Object storage_. To store the state on a cloud provider, the developer first need to setup an account on the cloud provider, gain the required roles/permissions and actually write the Terraform code. Depending on the cloud provider this can be a more or less complex process and it can be a big hurdle to overcome if it is the developers first time doing it or the developer is new in the field [[s]](https://www.pmg.com/blog/a-beginners-experience-with-terraform).
+
+So before the developer can start using Terraform, they first need to solve the problem of _how and where to store the Terraform state_.
 
 Lowering a barrier to start up projects, by removing the need for storing a terraform state, is an argument for switching to control planes.
 
 ### 8.1.2. Challenges with managing terraform state
 
-Distributed teams can store the Terraform state in some remote place. But just because it is shared in a remote place does not mean multiple people can work on it simultaneously.
+Terraform state is inherently difficult to manage [[s]](https://adambrodziak.pl/terraform-is-terrible). Just because Terraform state is stored in a remote place does not mean multiple people can work on it simultaneously.
 
 <!-- no lock -->
-When storing the state in a remote place, you need to specify a so-called Backend Configuration [[s]](https://developer.hashicorp.com/terraform/language/settings/backends/configuration), but not all Backend Configurations support locking. This means that in some cases, race conditions can still happen (if two people run `terraform apply` at the same time). An example of this is that there is no lock on the state if stored on AWS S3. A solution to this is to store lock file somewhere else (e.g. a AWS DynamoDB table) [[s]](https://adambrodziak.pl/terraform-is-terrible) and [[s]](https://www.linkedin.com/pulse/terraform-state-remote-storage-s3-locking-dynamodb-oramu-/?trk=pulse-article) and [[s]](https://angelo-malatacca83.medium.com/aws-terraform-s3-and-dynamodb-backend-3b28431a76c1). This again just adds to the complexity and creates an even bigger barrier for getting started with terraform if you want to make sure your Terraform is safe to use. 
+When storing the state in a remote place, you need to specify a so-called Backend Configuration [[s]](https://developer.hashicorp.com/terraform/language/settings/backends/configuration), but not all Backend Configurations support locking. This means that in some cases, race conditions can still happen (if two people run `terraform apply` at the same time).
+An example of this is that there is no lock on the state if stored on AWS S3 (object storage on AWS). A solution to this is to create a lock for the S3 and store it somewhere else (e.g. a AWS DynamoDB table) [[s]](https://adambrodziak.pl/terraform-is-terrible) and [[s]](https://www.linkedin.com/pulse/terraform-state-remote-storage-s3-locking-dynamodb-oramu-/?trk=pulse-article) and [[s]](https://angelo-malatacca83.medium.com/aws-terraform-s3-and-dynamodb-backend-3b28431a76c1). This again just adds to the complexity and creates an even bigger barrier for getting started with terraform if you want to make sure your IaC configuration is safe to use. 
 
 <!-- force unlocking -->
-Furthermore, if a `terraform apply` goes wrong because the process is interrupted for whatever reason, the state can end up not being unlocked, and you have to `force-unlock` the state [[s]](https://www.terraform.io/cli/state/recover). This is, of course, a great feature to solve the issue - but the main problem here is that this can happen to begin with.
-Things can get even worse if a `force-unlock` is executed while another process is in the middle of applying [[s]](https://www.terraform.io/language/state/locking). Managing a mutual state in a distributed state is difficult at its core. 
+Even if there is a lock on the Terraform State it can still get corrupted. If a `terraform apply` goes wrong because the process is interrupted for whatever reason, the state can end up not being unlocked, and you have to `force-unlock` the state [[s]](https://www.terraform.io/cli/state/recover). This gets even worse if a `force-unlock` is executed while another process is in the middle of applying [[s]](https://www.terraform.io/language/state/locking). This can result in multiple simultaneous writers which can result in the state being unusable/corrupted [[s]](https://developer.hashicorp.com/terraform/cli/state/recover).
 
 <!-- only one person at a time -->
-But even though there may be a lock that makes sure that there is no race condition while applying, only one person/process can work on the state simultaneously. Updating a Terraform state can take minutes - e.g., it will take around 10 minutes to spin up a GKE cluster on GCP [[s](https://learn.hashicorp.com/tutorials/terraform/gke)]. "During this time no other entity - no other engineer - can apply changes to the configuration." [[s](https://blog.crossplane.io/crossplane-vs-terraform/)]. This is an even bigger problem when you have a monolithic infrastructure configuration with a lot of dependencies and all components are stored in the same Terraform state. So if one developer is updating the GKE cluster, then another developer may be blocked from updating a database or a networking rule.
+Furthermore, even though there may be a lock that makes sure that there is no race condition while applying, only one person/process can work on the state simultaneously. Updating a Terraform state can take minutes - e.g., it will take around 10 minutes to spin up a GKE cluster on GCP [[s](https://learn.hashicorp.com/tutorials/terraform/gke)]. "During this time no other entity - no other engineer - can apply changes to the configuration." [[s](https://blog.crossplane.io/crossplane-vs-terraform/)]. This is an even bigger problem when you have a monolithic infrastructure configuration with a lot of dependencies and all components are stored in the same Terraform state. So if one developer is updating the GKE cluster, then another developer (or automated process) may be blocked from updating a database or a networking rule. So overall Terraform can end up being a bottleneck if a big company has multiple developers or processes working on the infrastructure at the same time. 
 
 <!-- drift -->
 Another challenge with Terraform state is that Terraform's state can easily go out of sync. This is called _configuration drift_ [[source](https://adambrodziak.pl/terraform-is-terrible), [source](https://blog.upbound.io/outgrowing-terraform-and-migrating-to-crossplane/)]. If the `terraform apply`-command is not run regularly, the actual state can drift away from the declared/desired state. This can for example happen if a Terraform managed database running on a cloud provider is modified manually through the cloud platforms interface and not through Terraform, then the actual state will no longer reflect the terraform state. This means the terraform state no longer reflects the real world. This can create issues when later mutating the stored state, which can make the stored state unusable because it is so far from the actual state. 
 
-This can both be a gift and a curse. If it is an emergency, then it is possible to modify the terraform-created-resource manually through some other service (e.g., a person could change a network rule manually through Google Cloud Platform) without it being reverted by some automated tool.
+In some cases it might be beneficial to modify the terraform-created-resource manually through some other service if an infrastructure-related emergency happens. An example of this would be a person changing a network rule manually through Google Cloud Platform web-interface in the middle, because a service needed to use a new IP address and it needed to be fixed as soon as possible. This would not be possible if the IoC configuration tool did not allow _configuration drift_.
 
+### 8.1.3. State management with control planes.
+
+<!--
 So the Terraform state can either be updated by:
 - A manual task e.g., a developer manually creating a database
 - A triggered automated task e.g. a deployment pipeline that applies the newly changed Terraform files a tool like [Atlantis](https://www.runatlantis.io/) or Terraform Cloud.
 - a GitOps tool e.g. ArgoCD that continuously synchronizes the actual state with the declared state stored in a repo (or elsewhere).
+-->
 
-### 8.1.3. State automation
+Configuration drift with terraform can be avoided by using an automated tool (e.g. [Atlantis](https://www.runatlantis.io/ or Terraform Cloud) or script that simply does runs `terraform apply` on a regular basis. By doing this essentially creates a system that works just like a control plane. So instead of using a tool like Terraform with all its challenges and then patching some of the issues by wrapping it in some automation tool/script then it may be better to use a control plane-based tool that was built to solve exactly that.
 
-Configuration drift with terraform can be avoided by installing an automated tool or script that simply does this `terraform apply`-step on a regular basis. By doing this essentially creates a system that works just like a control plane. So instead of using a tool with all its issues and then patching some of the issues by wrapping it in some automation tool/script... why not just use a control plane that was built to solve exactly that?
+Kubernetes stores a desired state, and the internal components try to keep the actual state as close as possible to the desired state <maybe use reconsile here>. The state is stored as Kubernetes objects definitions declared in YAML (also known as manifests). The information stored in the Terraform state can instead be stored as Kubernetes Objects stored inside Kubernetes. A control plane running on Kubernetes could automatically sync the actual infrastructure with the declared state.
+<!-- Control plane-based infrastructure management can automatically correct drift and can "self-heal" if something goes down [[s]](https://crossplane.io/), meaning the  -->
 
-Kubernetes stores desired state, and the internal components try to keep the actual state as close as possible to the desired state. The state is stored as Kubernetes objects definitions declared in YAML. Why not store the same information usually stored in Terraform state inside Kubernetes instead? A control plane running on Kubernetes could automatically sync (similar to continuously running `terraform apply`) the actual infrastructure with the declared state in YAML. 
+_Crossplane_, Google's _Config Connector_, and AWS' _Controllers for Kubernetes_ are control planes that reconciles a declared state (stored inside kubernetes's etcd-database) with resources managed by a given cloud provider. This paper will focus on Crossplane because it is built as a framework for control planes in general and not only focuses on a single cloud provider.
 
-_Crossplane_, Google's _Config Connector_, and AWS' _Controllers for Kubernetes_ are tools control planes that reconciles a declared state (stored inside kubernetes's etcd-database) with resources managed by a given cloud provider. This paper will focus on Crossplane because it is built as a foundation for control planes in general and not only focuses on a single cloud provider.
-
-<!-- skal det her ned til implemenation afsnitttet? -->
+<!-- skal det her ned til implemenation eller diskussions afsnitttet? -->
 Even though the paper highlights Crossplane as a tool, the question is not so much if Crossplane specifically is a great tool or not - but more about whether the paradigm of control planes is good in general. As Eficode states: "If Crossplane does not strike the right balance and abstraction level, the next control plane will." [[s](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)]
 
 > Control planes are self-healing, and they automatically correct drift.
@@ -317,7 +333,7 @@ In order to verify and demonstrate that the universal control plane I have built
 
 To do this, I have used Eficode's public [`quotes-flask`](https://github.com/eficode-academy/quotes-flask) application that they use for educational purposes. It is a simple application consisting of a frontend, backend, and a database. I will refer to this application as "Quote App".
 
-The frontend is a website where users can post and read "quotes" from other users. The quotes are posted and sent to the backend-service, which then stores the data in a Postgres database.
+Quote App's frontend is a website where users can post and read "quotes" from other users. The quotes are posted and sent to the backend-service, which then stores the data in a Postgres database.
 
 The Quote App is built to be run on Kubernetes, and the repository already contains Kubernetes manifests. The system uses a Postgres database running in a standalone _Pod_. To showcase the implementation of a universal control plane's ability to provision database resources on cloud providers, I have replaced the Postgres-database-pod with a managed database running in a cloud provider. Besides that, I have not changed the overall architecture. 
 
@@ -325,7 +341,7 @@ The Quote App is built to be run on Kubernetes, and the repository already conta
 
 This setup is supposed to represent an actual production-ready application that a hypothetical business may want to run on a cloud provider.
 
-The business may want multiple environments like _production_, _staging_, and _development_, and they may leverage cloud services across multiple cloud providers. Therefore the aim of the system is to look something like what can be seen on Figure X.
+The business may want multiple environments like _production_, _staging_, and _development_, and they may leverage cloud services across multiple cloud providers. Therefore this demonstration application will run on mulitple isolated environments on one cloud provider and access a database on another cloud provider (visualized in Figure X).
 
 <img src="images/drawings_quote-setup-cloud-provider.png" width="600" />
 
@@ -341,7 +357,7 @@ This section describes how I suggest building a universal control plane within K
 <!-- main idea -->
 The main design idea of this implementation is to have a single cluster that works as a control plane. This cluster will provision other clusters and deploy software to them.
 
-To better understand the design idea, two names are introduced: `core cluster` and `app cluster`. The `core cluster` is the control plane for managing your infrastructure and software environment. The `app clusters` is a shared term for all the clusters where business logic is supposed to run. For instance, a company may have two `app cluster`s in the form of a production cluster and a staging cluster. The `core cluster` hosts all the core infrastructure components (like ArgoCD and Crossplane, introduced in the next section) and shared services between different `app cluster` environments. 
+To better understand the design idea, two names are introduced: `core cluster` and `app cluster`. The `core cluster` is (or represents?) the universal control plane for managing both infrastructure and software deployment. The `app clusters` is a shared term for all the clusters where business logic is supposed to run. For instance, a company may have two `app cluster`s in the form of a production cluster and a staging cluster. The `core cluster` hosts all the core infrastructure components (like ArgoCD and Crossplane, introduced in the next section) and shared services between different `app cluster` environments. 
 
 <img src="images/drawings_control-plane.png" width="600" />
 
@@ -356,7 +372,7 @@ The `core cluster` uses Crossplane for provisioning cloud resources and use Argo
 
 > Figure X: An visualization of how ArgoCD and Crossplane work together to provision cloud resources.
 
-ArgoCD handles all internal state (e.g. deploying containers), while Crossplane handles all external states (e.g. provisioning cloud resources) - combined, they can be used as a universal control plane.
+ArgoCD handles all internal state (e.g. deploying containers and configuration), while Crossplane handles all external states (e.g. provisioning cloud resources) - combined, they can be used as a universal control plane.
 
 <!-- står allerede i State automation. Måske det skal flyttes her til.
 As mentioned previously, the question is not whether Crossplane or ArgoCD are great tools or not - but more about whether the paradigm of control planes is good in general. As Eficode states: "If Crossplane does not strike the right balance and abstraction level, the next control plane will." [[s](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)]
