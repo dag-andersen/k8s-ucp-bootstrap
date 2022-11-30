@@ -499,14 +499,14 @@ k8s-ucp-app-gitops (repository root)
 ├── argo-bootstrap
 │   ├── prod
 │   └── stage
-├── example-database-eficode-aws
+├── quote-app-with-database-aws
 │   ├── base
 │   │   ├── backend
 │   │   └── frontend
 │   └── overlays
 │       ├── prod
 │       └── stage
-├── example-database-eficode-gcp
+├── quote-app-with-database-gcp
 │   ├── base
 │   │   ├── backend
 │   │   └── frontend

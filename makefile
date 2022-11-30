@@ -81,7 +81,7 @@ sync-apps:
 	@printf "Now Syncing: \n$$(echo $${APPS} | tr " " "\n")" | $(echo-info)
 	@argocd app sync $${APPS} --async || true
 	@printf "Waiting sync" | $(echo-info)
-	@while ! argocd app wait $${APPS} --timeout 30 > /dev/null; do echo "Waiting for apps to be ready" && make sleep-10 && argocd app sync $${APPS} --async; done
+	@while ! argocd app wait $${APPS} --timeout 30 > /dev/null; do echo "Waiting for apps [$${APPS}] to be ready" && make sleep-20 && argocd app sync $${APPS} --async || true; done
 	@printf "Synced" | $(echo-info)
 
 delete-app-%:
@@ -157,12 +157,10 @@ start-internal:
 	if [[ "$(OPTIONS)" == *"aws-database-example"* ]];	then APPS="$${APPS} aws-database"; fi && \
 	make sync-apps APPS="$${APPS}"
 	@if [[ "$(OPTIONS)" == *"prod-cluster"* ]]; then\
-		$(spin) "Waiting for prod closter to be ready" -- \
 			make wait-for-cluster-prod add-gcp-cluster-prod && \
 		printf "Added prod cluster to argo" | $(echo-info); \
 	fi
 	@if [[ "$(OPTIONS)" == *"stage-cluster"* ]]; then\
-		$(spin) "Syncing staging cluster" -- \
 			make wait-for-cluster-stage add-gcp-cluster-stage && \
 		printf "Added stage cluster to argo" | $(echo-info); \
 	fi
@@ -174,8 +172,8 @@ database-example-%:
 		$(spin) "Waiting for $* database to be running" -- \
 			make wait-for-database-$* && \
 		printf "$* database is now running" | $(echo-info); \
-		if [[ "$(OPTIONS)" == *"prod-cluster"* ]]; then		make sync-apps APPS=prod-example-database-eficode-$*;	fi && \
-		if [[ "$(OPTIONS)" == *"stage-cluster"* ]]; then	make sync-apps APPS=stage-example-database-eficode-$*;	fi \
+		if [[ "$(OPTIONS)" == *"prod-cluster"* ]]; then		make sync-apps APPS=prod-quote-app-with-database-$*;	fi && \
+		if [[ "$(OPTIONS)" == *"stage-cluster"* ]]; then	make sync-apps APPS=stage-quote-app-with-database-$*;	fi \
 	fi
 
 stop:
@@ -189,8 +187,8 @@ stop:
 	make stop-internal CORE=$${CORE} OPTIONS=" $$(echo $${OPTIONS}) "
 
 stop-internal:
-	@if [[ "$(OPTIONS)" == *"aws-database-example"* ]];	then APPS="$${APPS} aws-database prod-example-database-eficode-aws stage-example-database-eficode-aws"; fi && \
-	if [[ "$(OPTIONS)" == *"gcp-database-example"* ]];	then APPS="$${APPS} gcp-database prod-example-database-eficode-gcp stage-example-database-eficode-gcp"; fi && \
+	@if [[ "$(OPTIONS)" == *"aws-database-example"* ]];	then APPS="$${APPS} aws-database prod-quote-app-with-database-aws stage-quote-app-with-database-aws"; fi && \
+	if [[ "$(OPTIONS)" == *"gcp-database-example"* ]];	then APPS="$${APPS} gcp-database prod-quote-app-with-database-gcp stage-quote-app-with-database-gcp"; fi && \
 	if [[ "$(OPTIONS)" == *"prod-cluster"* ]];			then APPS="$${APPS} gcp-cluster-prod"; fi && \
 	if [[ "$(OPTIONS)" == *"stage-cluster"* ]];			then APPS="$${APPS} gcp-cluster-stage"; fi && \
 	make delete-apps APPS="$${APPS}"
