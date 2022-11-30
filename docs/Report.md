@@ -68,7 +68,7 @@ It is called Kubernetes objects and not Kubernetes resources.
 "Using control planes means relinquishing control. Therefore seasoned SRE teams may feel a reluctance in trusting the control plane.", https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes
 
 -->
-# 2. Abstract
+# 1. Abstract
 
 <!-- 
 Infrastructure management is in constant development.
@@ -100,30 +100,29 @@ This explains the concept of control planes and how to build kubernetes as an un
 <!-- further research
 -->
 
-# 3. Table of Contents
+# 2. Table of Contents
 
-- [2. Abstract](#2-abstract)
-- [3. Table of Contents](#3-table-of-contents)
-- [4. Dictionary and abbreviations](#4-dictionary-and-abbreviations)
-- [5. Introduction](#5-introduction)
-- [6. Motivation](#6-motivation)
-- [7. Defining Control Plane](#7-defining-control-plane)
-- [8. Declarative vs Imperative](#8-declarative-vs-imperative)
-  - [8.1. Terraform](#81-terraform)
-    - [8.1.1. Barrier of entry](#811-barrier-of-entry)
-    - [8.1.2. Challenges with managing terraform state](#812-challenges-with-managing-terraform-state)
-    - [8.1.3. State management with control planes.](#813-state-management-with-control-planes)
-    - [8.1.4. Crossplane as an alternative](#814-crossplane-as-an-alternative)
+- [1. Abstract](#1-abstract)
+- [2. Table of Contents](#2-table-of-contents)
+- [3. Dictionary and abbreviations](#3-dictionary-and-abbreviations)
+- [4. Introduction](#4-introduction)
+- [5. Motivation](#5-motivation)
+- [6. Defining Control Plane](#6-defining-control-plane)
+- [7. Declarative vs Imperative](#7-declarative-vs-imperative)
+  - [7.1. Terraform](#71-terraform)
+    - [7.1.1. Barrier of entry](#711-barrier-of-entry)
+    - [7.1.2. Challenges with managing terraform state](#712-challenges-with-managing-terraform-state)
+  - [8. From Terraform to control planes.](#8-from-terraform-to-control-planes)
 - [9. Demonstration Application](#9-demonstration-application)
 - [10. Implementation](#10-implementation)
-  - [10.1. List of tools/technologies used in this implementation](#101-list-of-toolstechnologies-used-in-this-implementation)
-  - [10.2. Managing internal state with ArgoCD](#102-managing-internal-state-with-argocd)
-    - [10.2.1. Other applications/packages](#1021-other-applicationspackages)
-    - [10.2.2. Eventual consistency](#1022-eventual-consistency)
-    - [10.2.3. Repository structure](#1023-repository-structure)
-  - [10.3. Managing External State](#103-managing-external-state)
-  - [10.4. Distributing secrets](#104-distributing-secrets)
-    - [10.4.1. Getting access to the App Clusters](#1041-getting-access-to-the-app-clusters)
+  - [10.1. Technologies and tools used in this implementation](#101-technologies-and-tools-used-in-this-implementation)
+  - [10.2. ArgoCD and Crossplane together](#102-argocd-and-crossplane-together)
+  - [10.3. Managing internal state with ArgoCD](#103-managing-internal-state-with-argocd)
+    - [10.3.1. Eventual consistency](#1031-eventual-consistency)
+    - [10.3.2. Repository structure](#1032-repository-structure)
+  - [10.4. Managing External State with Crossplane](#104-managing-external-state-with-crossplane)
+  - [10.5. Distributing secrets](#105-distributing-secrets)
+    - [10.5.1. Getting access to the App Clusters](#1051-getting-access-to-the-app-clusters)
 - [11. Demonstration Application running in Google Cloud](#11-demonstration-application-running-in-google-cloud)
   - [11.1. Use in practice](#111-use-in-practice)
     - [11.1.1. Developer creating a new service with an associated database](#1111-developer-creating-a-new-service-with-an-associated-database)
@@ -145,7 +144,7 @@ This explains the concept of control planes and how to build kubernetes as an un
 - [14. References](#14-references)
 
 
-# 4. Dictionary and abbreviations
+# 3. Dictionary and abbreviations
 
 It is assumed that the reader is familiar with Kubernetes, its concepts, and terminology. Furthermore it a assumed that reader is familiar with Terraform, how it manages its state, and how Terraform providers work. In addition to that there is a list of the additional terms and aberration used in this paper. 
 
@@ -163,7 +162,7 @@ It is assumed that the reader is familiar with Kubernetes, its concepts, and ter
 - **External State**: External state in this paper refers to declared Kubernetes Objects reflecting objects managed outside Kubernetes (e.g. a database running on a cloud provider)
 - **Reconciler pattern**: Reconciler pattern is the concept of checking the difference between the desired state and the actual state, and if there is a difference, an action is taken to make the actual state becomes the desired state [[s](https://www.learnsteps.com/how-kubernetes-works-on-a-reconciler-pattern/)].
 
-# 5. Introduction
+# 4. Introduction
 
 <!-- into to control planes -->
 Since the creation of Kubernetes, we are seeing an increasing number of CNCF projects built as control planes (FluxCD, ArgoCD, Crossplane, whatever...). The concept of a control plane is built on the idea of service that watches a declared state and make sure that a system's actual state reflects the declared state. If the desired state changes, the control plane ensures that the new declared state is automatically reflected in the actual state.
@@ -174,7 +173,7 @@ At its core, Kubernetes stores a declared state in its etcd-database, and differ
 <!-- big question -->
 Now the question is if multiple control planes can be combine to create a universal control plane for handling all kinds of state, all managed from within Kubernetes. This paper will implement a universal control plane for handling both internal state (e.g. containers) and external state (e.g. cloud resources) and discuss the challenges and implications.
 
-# 6. Motivation
+# 5. Motivation
 
 <!-- who is Eficode? -->
 This paper is written in collaboration with Eficode. Eficode is a consulting company that specializes in DevOps. Eficode offers consultancy, training, and managed services that enable organizations to develop quality software faster, using the leading methods and tools available. Eficode is committed to keeping up with the latest trends and technologies in DevOps, so they can give their customers the best advice and training [[text is in google link]](https://www.eficode.com/).
@@ -206,7 +205,7 @@ Control planes are self-healing and they automatically correct drift.[[source](h
 
 -->
 
-# 7. Defining Control Plane
+# 6. Defining Control Plane
 
 Control plane means something different depending on the context.
 
@@ -222,7 +221,7 @@ When i refer to building a system that utilizes kubernetes as an _universal cont
 In this paper I build an implementation of a universal control plane in kubernetes, where the user can manage both internal state (e.g. _Pods_) and external state (e.g. databases and other Kubernetes clusters).
 -->
 
-# 8. Declarative vs Imperative
+# 7. Declarative vs Imperative
 
 <!--
 When building a universal control plane for handling all our infrastructure, we need to base it on some core design ideas. First of all, we need to want to build our infrastructure as Infrastructure as Code (IaC) using as much declarative configuration as possible. We want to limit the amount of imperative commands and long scripts of sequential steps as much as possible.-
@@ -250,7 +249,7 @@ https://blog.mergify.com/gitops-the-game-changer/
 
 -->
 
-## 8.1. Terraform
+## 7.1. Terraform
 
 A very popular tool that is based on the idea of IaC and declarative configuration is Terraform. Terraforms' popularity started in 2016-2017 and has been growing ever since [[s]](https://www.hashicorp.com/resources/the-story-of-hashicorp-terraform-with-mitchell-hashimoto).
 
@@ -261,16 +260,21 @@ Terraform is responsible for handling the entire lifecycle of the resources: fro
 Terraform is cloud-agnostic and can provision cloud resources across all the big cloud providers (e.g. AWS, Azure, and GCP) [[s]](https://www.varonis.com/blog/what-is-terraform).
 Terraform has the concept of terraform-providers, where service providers (e.g. GCP) can create integrations with Terraform and let the user manage the providers' services through the HashiCorp Configuration Language (HCL). "Providers enable Terraform to work with virtually any platform or service with an accessible API" [[s]](https://www.terraform.io/intro). 
 
+<!-- maybe here 
+Terraform has the concept of _providers_.
+A Terraform provider is a Terraform plugin that allows users to manage an external API. "Terraform uses providers to provision resources, which describe one or more infrastructure objects like virtual networks and compute instances. Each provider on the Terraform Registry has documentation detailing available resources and their configuration options." [[source]](https://www.terraform.io/cdktf/concepts/providers).
+-->
+
 Even though Terraform is popular an versatile it might not be the best way to manage infrastructure. This section describes some of the issues related to using Terraform and why it might be better to use control planes for handling cloud resources. 
 
-### 8.1.1. Barrier of entry 
+### 7.1.1. Barrier of entry 
 The only practical way of using Terraform in teams is to store the state in some shared place [[s]](https://adambrodziak.pl/terraform-is-terrible). This is commonly done on a cloud provider in some kind of _Object storage_. To store the state on a cloud provider, the developer first need to setup an account on the cloud provider, gain the required roles/permissions and actually write the Terraform code. Depending on the cloud provider this can be a more or less complex process and it can be a big hurdle to overcome if it is the developers first time doing it or the developer is new in the field [[s]](https://www.pmg.com/blog/a-beginners-experience-with-terraform).
 
 So before the developer can start using Terraform, they first need to solve the problem of _how and where to store the Terraform state_.
 
 Lowering a barrier to start up projects, by removing the need for storing a terraform state, is an argument for switching to control planes.
 
-### 8.1.2. Challenges with managing terraform state
+### 7.1.2. Challenges with managing terraform state
 
 Terraform state is inherently difficult to manage [[s]](https://adambrodziak.pl/terraform-is-terrible). Just because Terraform state is stored in a remote place does not mean multiple people can work on it simultaneously.
 
@@ -289,7 +293,7 @@ Another challenge with Terraform state is that Terraform's state can easily go o
 
 In some cases it might be beneficial to modify the terraform-created-resource manually through some other service if an infrastructure-related emergency happens. An example of this would be a person changing a network rule manually through Google Cloud Platform web-interface in the middle, because a service needed to use a new IP address and it needed to be fixed as soon as possible. This would not be possible if the IoC configuration tool did not allow _configuration drift_.
 
-### 8.1.3. State management with control planes.
+## 8. From Terraform to control planes.
 
 <!--
 So the Terraform state can either be updated by:
@@ -305,27 +309,12 @@ Kubernetes stores a desired state, and the internal components try to keep the a
 
 _Crossplane_, Google's _Config Connector_, and AWS' _Controllers for Kubernetes_ are control planes that reconciles a declared state (stored inside kubernetes's etcd-database) with resources managed by a given cloud provider. This paper will focus on Crossplane because it is built as a framework for control planes in general and not only focuses on a single cloud provider.
 
+---
+
 <!-- skal det her ned til implemenation eller diskussions afsnitttet? -->
 Even though the paper highlights Crossplane as a tool, the question is not so much if Crossplane specifically is a great tool or not - but more about whether the paradigm of control planes is good in general. As Eficode states: "If Crossplane does not strike the right balance and abstraction level, the next control plane will." [[s](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)]
 
-> Control planes are self-healing, and they automatically correct drift.
-
-### 8.1.4. Crossplane as an alternative
-
-The most popular cloud native control plane tool for handling external state is _Crossplane_. Crossplane is a CNCF project that tries to streamline cloud providers' APIs. 
-
-Crossplane tries to follow the success of Terraform and applies some of the same concepts to Kubernetes. Terraform has the concept of _providers_. A Terraform provider is a Terraform plugin that allows users to manage an external API. "Terraform uses providers to provision resources, which describe one or more infrastructure objects like virtual networks and compute instances. Each provider on the Terraform Registry has documentation detailing available resources and their configuration options." [[source]](https://www.terraform.io/cdktf/concepts/providers). Crossplane mimics this concept, so external organizations can create a plugin that integrates with Crossplane providing the user the ability to provision external resources.
-
-<!-- multi-cloud -->
-Crossplane can be used to provision resources for cloud providers if the cloud provider has created a Crossplane provider for it.
-As a company/organization, it can be beneficial to have the option to be multi-cloud because different cloud providers have different offerings. 
-
-Terraform uses the HashiCorp configuration language (HCL), while Crossplane uses `YAML` and follows the same structure conventions as Kubernetes manifests. [What is a manifest source](https://medium.com/@sujithabdulrahim/understanding-the-kubernetes-manifest-e96d680f2a11)
-
-<!-- Transitioning -->
-It can be a big jump to rewrite your entire infrastructure to use control planes instead of Terraform, which is why tools like _Kubeform_[[s]](https://kubeform.com/) and _the Terraform provider for Crossplane_ exist[[s]](https://github.com/.crossplane-contrib/provider-terraform). Kubeform provides auto-generated Kubernetes Custom Resource Definitions (CRDs) for Terraform resources so that you can manage any cloud infrastructure in a Kubernetes native way. This requires you to rewrite your HCL to Kubernetes CRDs, so if that is too time-consuming, you can instead use Crossplane's Terraform provider. This provider lets you copy-paste your Terraform syntax directly into a CRD, and Crossplane will, in concept, run `terraform apply` automatically. This could be an intermediate step before doing a complete transition from Terraform to Crossplane. 
-
-Crossplane will be described in greater detail in the _Managing External State_-section. 
+<!-- Crossplane will be described in greater detail in the _Managing External State_-section.  -->
 
 # 9. Demonstration Application
 
@@ -341,7 +330,7 @@ The Quote App is built to be run on Kubernetes, and the repository already conta
 
 This setup is supposed to represent an actual production-ready application that a hypothetical business may want to run on a cloud provider.
 
-The business may want multiple environments like _production_, _staging_, and _development_, and they may leverage cloud services across multiple cloud providers. Therefore this demonstration application will run on mulitple isolated environments on one cloud provider and access a database on another cloud provider (visualized in Figure X).
+The business may want multiple environments like _production_, _staging_, and _development_, and they may leverage cloud services across multiple cloud providers. Therefore this demonstration application will run on multiple isolated environments on one cloud provider and access a database on another cloud provider (visualized in Figure X).
 
 <img src="images/drawings_quote-setup-cloud-provider.png" width="600" />
 
@@ -355,55 +344,82 @@ This architecture demonstrates the universal control plane's multi-cloud and mul
 This section describes how I suggest building a universal control plane within Kubernetes for handling internal and external resources. The implementation strives to imitate a production-ready system for a hypothetical company with a website running in a production and staging environment in the cloud.
 
 <!-- main idea -->
-The main design idea of this implementation is to have a single cluster that works as a control plane. This cluster will provision other clusters and deploy software to them.
-
-To better understand the design idea, two names are introduced: `core cluster` and `app cluster`. The `core cluster` is (or represents?) the universal control plane for managing both infrastructure and software deployment. The `app clusters` is a shared term for all the clusters where business logic is supposed to run. For instance, a company may have two `app cluster`s in the form of a production cluster and a staging cluster. The `core cluster` hosts all the core infrastructure components (like ArgoCD and Crossplane, introduced in the next section) and shared services between different `app cluster` environments. 
+The main design idea of this implementation is to have a single cluster that works as a control plane for managing databases, other clusters, and software deployment. To better understand the design idea, two names are introduced: `core cluster` and `app cluster`. The `core cluster` represents the universal control plane for managing both infrastructure and software deployment. The `app clusters` is a shared term for all the clusters where business logic is supposed to run. For instance, a company may have two `app cluster`s in the form of a production cluster and a staging cluster. The `core cluster` hosts all the core infrastructure components (like ArgoCD and Crossplane, introduced in the next section) and shared services between different `app cluster` environments. 
 
 <img src="images/drawings_control-plane.png" width="600" />
 
 > Figure X: An illustration of how the infrastructure team manages `app clusters` through the `core cluster`.
 
-Only the infrastructure teams are supposed to interact with `core cluster` directly - while the application developers are supposed to only care about getting their workload running on the `app cluster`s. 
+Only the infrastructure teams are supposed to interact with `core cluster` directly - while the application developers are supposed to only care about getting their workload running on the `app cluster`s. The design is visualized in Figure X.
+
+## 10.1. Technologies and tools used in this implementation
+
+**Amazon Web Services**
+AWS was chosen as the cloud provider for a simple managed cloud database. AWS is one of the officially supported providers for Crossplane [[s]](https://crossplane.io/docs/v1.10/reference/configure.html). Both Azure or GCP would be a would be a potential alternatives to AWS in this implementation.
+
+**Google Cloud Platform**
+GCP was chosen as the main provider for cloud-hosted Kubernetes clusters and Networking because GCP is less complex [[s]](https://nandovillalba.medium.com/why-i-think-gcp-is-better-than-aws-ea78f9975bda) to use than AWS. GCP is one of the officially supported providers for Crossplane [[s]](https://crossplane.io/docs/v1.10/reference/configure.html). 
+
+<!-- dics? -->
+Another choice would be DigitalOcean, but I experienced some issues with using Crossplane with DigitalOcean (also described in the _Maturity level_-section). I didn't experiment with Microsoft Azure since I had no prior experience working with them as a cloud provider.
+Both AWS and Azure would be a potential alternatives to GCP in this implementation. 
+
+**Kind**
+Kind is used for running the `core cluster` locally. When developing and experimenting with the `core cluster`, it can be beneficial to run the cluster locally because it can take a long time to provision clusters on cloud providers (e.g., it often takes 10 minutes on GCP).
+
+<!-- dics? -->
+There are many different tools for running Kubernetes locally, and many of them would probably work for this implementation, but the choice ended with Kind because it is easy to set up and simple to use. Other alternatives could be _MicroK8s_ or _Docker Desktop_. 
+
+**Gum**
+Gum is a simple command line tool for making interactive scripts. Gum is used to run the scripts starting the `core-cluster` and interactively picking a configuration (e.g. if it should run on GCP or locally with Kind)
+
+**Helm and Kustomize**
+Helm and Kustomize are used to template and install Kubernetes resources. Helm is a package manager for Kubernetes and ArgoCD installs software packages (like Crossplane) using Helm. Kustomize is used for handling templating of my own Kubernetes manifests. One could choose not to use Kustomize and instead put everything into Helm charts as an alternative to this implementation.
+
+**ArgoCD**
+ArgoCD is a declarative, GitOps continuous delivery tool that is built as a control planes and runs inside Kubernetes [[s]](https://argoproj.github.io/cd.). ArgoCD groups manifests into an abstraction called _Applications_. An Application is a Kubernetes object that contains a path to a resource that needs to be deployed, a destination cluster, and some configuration parameters. Applications can deploy raw manifests, a Kustomize manifests, and a Helm Chart. Each Application can be synced independently and the developer can can declare a custom sync-policy for each (e.g. if an application should be sync automatically or not). An example of this is that the Quote App is deployed and managed by an ArgoCD Application. When changes are made to the application configuration in Git, Argo CD will compare it with the configurations of the running application to bring the desired and actual state into sync.[[s]](https://www.opsmx.com/what-is-argocd). ArgoCD is used for this implementation because it has more advanced UI features compared to similar-tools. ArgoCD was accepted to CNCF on April 7, 2020, and is at the Incubating project maturity level [[s](https://www.cncf.io/projects/argo/)]. 
+
+<!-- dics? -->
+The two biggest GitOps-tools are FluxCD and ArgoCD. This implementation could also be built using FluxCD. FluxCD and ArgoCD cover most of the same features, but the way you structure code looks a bit different. Both tools would be good candidates for building a universal control plane for Kubernetes.
+
+**Crossplane**
+Crossplane is a control plane that runs inside Kubernetes that makes sure that the external resources running in the cloud provider is in sync with the state declared in Kubernetes. Crossplane manages the entire lifecycle of the resources declared. All resource managed by Crossplane is declared in manifests stored in Kubernetes. Crossplane was accepted to CNCF on June 23, 2020, and is at the Incubating project maturity level [[s](https://www.cncf.io/projects/crossplane/)].
+
+<!-- providers -->
+Just like Terraform, Crossplane has the concept of _providers_ [[s]](https://crossplane.io/docs/v1.10/concepts/providers.html). Crossplane-providers work similar to how how Terraform-providers work. Service providers can create a plugin that integrates with Crossplane providing the user the ability to provision external resources on their infrastructure. It is now up to the service provider to manage and ensure that the state running on their infrastructure matches the desired state declared in the Kubernetes cluster.
+
+Using Crossplane for infrastructure management makes it possible to provision resource on multiple cloud providers at once, which can be beneficial because different cloud providers have different offerings. Currently, Crossplane supports AWS, GCP, and Azure as cloud providers. A DigitalOcean provider is also in active development [[source](https://www.digitalocean.com/blog/announcing-the-digitalocean-crossplane-provider)].
+
+<!-- discussion? -->
+If a multi-cloud architecture is not needed, one could instead opt for Google's _Config Connector_, or AWS' _Controllers for Kubernetes_. 
+
+<!-- move to discussion? -->
+<!-- Transitioning -->
+It can be a big jump to rewrite your entire infrastructure to use control planes instead of Terraform, which is why tools like _Kubeform_[[s]](https://kubeform.com/) and _the Terraform provider for Crossplane_ exist[[s]](https://github.com/.crossplane-contrib/provider-terraform). Kubeform provides auto-generated Kubernetes Custom Resource Definitions (CRDs) for Terraform resources so that you can manage any cloud infrastructure in a Kubernetes native way. This requires you to rewrite your HCL to Kubernetes CRDs, so if that is too time-consuming, you can instead use Crossplane's Terraform provider. This provider lets you copy-paste your Terraform syntax directly into a CRD, and Crossplane will, in concept, run `terraform apply` automatically. This could be an intermediate step before doing a complete transition from Terraform to Crossplane. 
+
+## 10.2. ArgoCD and Crossplane together
 
 <!-- intro to ArgoCD and Crossplane -->
-The `core cluster` uses Crossplane for provisioning cloud resources and use ArgoCD to deploy and manage all services that are running in the core cluster and the app clusters. Crossplane and ArgoCD are both open-source tools funded by the CNCF. They are created as Control planes for Kubernetes, and together they can be used to create a control plane for managing multi-cloud multi-environment infrastructure. 
+The `core cluster` uses Crossplane for provisioning cloud resources and use ArgoCD to deploy and manage all services that are running in the `core cluster` and the `app clusters`. Crossplane and ArgoCD are both open-source control plane based tools funded by the CNCF. ArgoCD handles all internal state (e.g. deploying containers and configuration), while Crossplane handles all external states (e.g. provisioning cloud resources) - combined, they can be used as a universal control plane for managing multi-cloud multi-environment infrastructure. 
+
+
+As seen on Figure X ArgoCD is responsible for applying the Crossplane resource manifests. 
 
 <img src="images/drawings_resource-abstraction-layers.png" width="700" />
 
-> Figure X: An visualization of how ArgoCD and Crossplane work together to provision cloud resources.
-
-ArgoCD handles all internal state (e.g. deploying containers and configuration), while Crossplane handles all external states (e.g. provisioning cloud resources) - combined, they can be used as a universal control plane.
+Crossplane itself and the Kubernetes manifests/objects used by Crossplane are all declared in manifests, checked into git, and synced by ArgoCD. Figure X is a visualization of how ArgoCD and Crossplane work together to provision cloud resources.
 
 <!-- står allerede i State automation. Måske det skal flyttes her til.
 As mentioned previously, the question is not whether Crossplane or ArgoCD are great tools or not - but more about whether the paradigm of control planes is good in general. As Eficode states: "If Crossplane does not strike the right balance and abstraction level, the next control plane will." [[s](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)]
 -->
 
-This setup can be extended by other tools. Crossplane focuses currently on cloud providers (but nothing prevents it from expanding to new areas in the future), so if you want to manage external resources that are not cloud-related, you could simply install a control plane for that as well. The main point is that only ArgoCD and Crossplane are necessary for the use cases presented in this paper, but other control planes could easily be added if more features were needed.
+<!-- move to discussion? -->
+This setup can be extended by other tools. Crossplane focuses currently on cloud providers, so if a user wants to manage external resources that are not cloud-related, the user could simply install a control plane for that as well. The main point is that only ArgoCD and Crossplane are necessary for the use cases presented in this paper, but other control planes could easily be added if more features were needed.
 
-## 10.1. List of tools/technologies used in this implementation
-
-**ArgoCD**
-ArgoCD is a GitOps tool that is built as a control planes that runs inside Kubernetes. ArgoCD was accepted to CNCF on April 7, 2020, and is at the Incubating project maturity level [[s](https://www.cncf.io/projects/argo/)]. ArgoCD is used for this implementation because it has more advanced UI features compared to similar-tools. The two biggest GitOps-tools are FluxCD and ArgoCD. This implementation could also be built using FluxCD. FluxCD and ArgoCD cover most of the same features, but the way you structure code looks a bit different. Both tools would be good candidates for building a universal control plane for Kubernetes.
-
-**Crossplane**
-Crossplane is used in this implementation because it is the only option if you want a control plane that works with multiple cloud providers (and is not just a Terraform synchronizer service that is moved into Kubernetes). If a multi-cloud architecture is not needed, one could instead opt for Google's _Config Connector_, or AWS' _Controllers for Kubernetes_. Crossplane was accepted to CNCF on June 23, 2020, and is at the Incubating project maturity level [[s](https://www.cncf.io/projects/crossplane/)].
-
-**Google Cloud Platform**
-GCP was chosen as the main provider for cloud-hosted Kubernetes clusters because it is less complex [[s]](https://nandovillalba.medium.com/why-i-think-gcp-is-better-than-aws-ea78f9975bda) to use than AWS but advanced and mature enough to work well with Crossplane. Another choice would be DigitalOcean, but I experienced some issues with using Crossplane with DigitalOcean (also described in the _Maturity level_-section). I didn't experiment with Microsoft Azure since I had no prior experience working with them as a cloud provider. Both AWS and Azure would be a potential alternatives to GCP in this implementation. 
-
-**Kind**
-Kind is used for running the `core cluster` locally. When developing and experimenting with this setup, it can be beneficial to run the setup locally because it can take a long time to provision clusters on cloud providers (e.g., it often takes 10 minutes on GCP). There are many different tools for running Kubernetes locally, and many of them would probably work for this implementation, but the choice ended with Kind because it is easy to set up and simple to use. Other alternatives could be _MicroK8s_ or _Docker Desktop_. 
-
-**Gum**
-Gum is a simple command line tool for making interactive scripts. When you want to start any type of custom-made system from a terminal, it usually involves creating multiple scripts for doing some of the initial bootstrapping. Gum was chosen as a simple tool for interactively picking a configuration on runtime instead of having to remember command parameters or creating static config-script. Gum used to run the scripts starting the `core-cluster` on GCP or locally with Kind.
-
-**Helm and Kustomize**
-Helm and Kustomize are used to template and install Kubernetes resources. Helm is a package manager for Kubernetes and ArgoCD installs software packages (like Crossplane) using Helm. Kustomize is used for handling templating of my own Kubernetes manifests. One could choose not to use Kustomize and instead put everything into Helm charts as an alternative to this implementation. 
-
-## 10.2. Managing internal state with ArgoCD
+## 10.3. Managing internal state with ArgoCD
 
 <!-- intro -->
-Everything deployed to the `core-clusters` (besides ArgoCD itself) and the `app-clusters` are declared in YAML, checked into git, and read by ArgoCD. 
+Everything deployed to the `core-clusters` (besides ArgoCD itself) and the `app-clusters` are declared in manifests, checked into git, and synced by ArgoCD. 
 
 <!-- one or more clusters -->
 ArgoCD can either be installed on each cluster individually (only controlling the local state) or on a single shared cluster which then handles the deployment to multiple clusters.
@@ -412,49 +428,50 @@ Installing ArgoCD on each cluster means there is no shared interface of all the 
 
 The implementation presented in this paper has a single instance of ArgoCD running on the `core cluster` and it deploys and manages all the Kubernetes Objects running in both the `core cluster` and the `app clusters`.
 
-<!-- Applications -->
-ArgoCD groups YAML-files/folders into an abstraction called _Applications_. An Application is a Kubernetes object that contains a path to a resource that needs to be deployed, a destination cluster, and some configuration parameters. You can structure (and nest) these groupings however you want, but you usually want smaller groupings, so you manage/sync them individually with more fine-grained control. e.g., deploying Crossplane-provisioned database separately from the Crossplane provisioned Kubernetes Cluster. This way, you don't have to use the same sync-policy for both groupings of resources. e.g., you may have pruning (auto-delete) disabled on the database to ensure databases are not deleted by mistake. 
-
-Based on this philosophy of separation, I have chosen to structure my applications like this:
+<!-- Grouping vs. separation -->
+ArgoCD applications can be nested and grouped arbitrary. My experience when developing the system is that smaller groupings are desirable, because they can be synced independently with more fine-grained control. For example grouping the Applications with Crossplane-provisioned database separately from the Application with Crossplane-provisioned Kubernetes App Cluster. This way, I can create/deploy and delete the two Applications independently. Based on this philosophy of separation, I have chosen to structure my applications as seen on Figure X.
 
 <img src="images/drawings_argo-apps.png" width="700" />
 
 > Figure X: An illustration of what packages/services ArgoCD installs and on which cluster.
 
-### 10.2.1. Other applications/packages
 
-Besides Crossplane, ArgoCD also installed other packages/services:
+As seen on Figure X, besides Crossplane and Quote App, ArgoCD also installed other packages/services:
 
 **Nginx**
 In order to call the _demonstration application_'s frontend from outside Kubernetes, we need to set up ingress. Nginx is an ingress controller that acts as a reverse proxy and load-balancer and handles all external traffic into the cluster. A cluster needs an ingress controller in order to call the endpoints inside Kubernetes from outside Kubernetes.
 
 **Prometheus and Grafana**
-Prometheus and Grafana is a famous open-source monitoring stack. This stack is not strictly needed to run the demonstration application, but it is used to resemble a realistic setup you would see in a company. It is installed on both the core clusters and the app clusters, so it is possible to observe resource usage of all clusters.
+Prometheus and Grafana is a open-source monitoring stack. This stack is not strictly needed to run the Quote App, but it is used to resemble a realistic infrastructure setup seen in a company. It is installed on both the core clusters and the app clusters, so it is possible to observe e.g. resource usage of all clusters.
 
-### 10.2.2. Eventual consistency
+**Manifest-Syncer**
+This is custom service i developed to sync secrets between the `core cluster` and the `app clusters`. This service will be described in detail in section: XXXX.
+
+### 10.3.1. Eventual consistency
 
 <!-- intro -->
 At its core, all ArgoCD does is that it reads from a given branch on a given repository and applies all the resources that it finds to Kubernetes. By default, there is no order to this process, but ArgoCD will simply apply all the manifests, and then Kubernetes will handle the rest (like scheduling _Pods_ and _Jobs_).
 
 <!-- how Argo handles eventual consistency -->
-In any modern software environment, there exist dependencies. The number of dependencies depends (vælg et andet ord) on how well a system is decoupled. If a company had to spin up its entire infrastructure from scratch, it would probably include a lot of sequential steps in a specific order because some of its services need other services to run. Doing sequential deployments through a script often takes a long time because it runs sequentially and not in parallel. With eventual consistency in kubernetes, multiple steps/jobs can run simultaneously and they will be executed eventually when the steps/systems they depend on are done. Kubernetes is full of eventual consistency (MAYBE DELETE THIS LINE). There is no order of when which resources/events are created/handled - instead, everything will just eventually be set up/running. Applying Kubernetes resources with ArgoCD works the same way. If ArgoCD fails to deploy one of these `Applications` (because some dependency may be missing), it will just automatically try again a minute later. This means I can apply our entire infrastructure at once with ArgoCD, and ArgoCD will make sure everything will be deployed with eventual consistency even though there are broken dependencies temporarily in the process. This also applies every time you update something in the infrastructure. Configuration and workload will be applied and scheduled whenever ArgoCD eventually syncs its state with whatever is stored in the chosen git repository. An example of this is that the quote-app-frontend will fail to deploy if Nginx is not installed in the cluster at deployment time. ArgoCD will keep trying to deploy the quote-app-frontend' ingress configuration until nginx eventually exists in the cluster. 
+In any modern software environment, there exist dependencies. The number of dependencies depends (vælg et andet ord) on how well a system is decoupled. If a company had to spin up its entire infrastructure from scratch, it would probably include a lot of sequential steps in a specific order because some of its services need other services to run. Doing sequential deployments through a script often takes a long time because it runs sequentially and not in parallel. With eventual consistency in kubernetes, multiple steps/jobs can run simultaneously and they will be executed eventually when the steps/systems they depend on are done. In Kubernetes there is no order of when which resources/events are created/handled. For example, if a Pod is created in the cluster it won't necessarily be scheduled immediately. Instead it will be created eventually, when the right conditions are present (e.g. enough CPU).
 
-### 10.2.3. Repository structure
+Applying Kubernetes resources with ArgoCD works the same way. If ArgoCD can't deploy an ArgoCD Applications (because some dependency may be missing), it will just automatically try again a minute later. This means I can apply our entire infrastructure at once with ArgoCD, and ArgoCD will make sure everything will be deployed with eventual consistency even though there are broken dependencies temporarily in the process. This also applies every time you update something in the infrastructure. Configuration and workload will be applied and scheduled whenever ArgoCD eventually syncs its state with what is stored in the chosen git repository. An example of this is that the quote-app-frontend will fail to deploy if Nginx is not installed in the cluster at deployment time. ArgoCD will keep trying to deploy the quote-app-frontend' ingress configuration until nginx eventually exists in the cluster. 
 
-The structure for my implementation of a universal control plane is split up into 3 repositories: One ArgoCD Synced repository for the `core-cluster`, a second ArgoCD synced repository for syncing with `app-cluster`, and finally, a general repository with code and scripts for bootstrapping the system. The bootstrapping repository mainly contain scripts for starting system.
+### 10.3.2. Repository structure
+
+The structure for my implementation of a universal control plane is split up into 3 repositories: One ArgoCD synced repository for the `core-cluster`, a second ArgoCD synced repository for syncing with `app-cluster`, and finally, a general repository with code and scripts for bootstrapping the system. The bootstrapping repository mainly contain scripts for starting `core` cluster. The GitOps synced repositories do not contain anything other than manifests synced with ArgoCD.
 
 ```
 root
 ├── k8s-ucp-bootstrap         # Repository with bootstrapping scripts
-├── k8s-ucp-app-gitops        # Repository only containing app-cluster resources synced with ArgoCD
-└── k8s-ucp-core-gitops       # Repository only containing core-cluster resources synced with ArgoCD
+├── k8s-ucp-app-gitops        # Repository only containing app-cluster manifests synced with ArgoCD
+└── k8s-ucp-core-gitops       # Repository only containing core-cluster manifests synced with ArgoCD
+
+('k8s-ucp' stands for 'Kubernetes Universal Control Plane'.)
 ```
 
-> `k8s-ucp` stands for _Kubernetes Universal Control Plane_.
-
-The GitOps synced repositories do not contain anything other than resources synced with ArgoCD. Only automated tools and scripts commit changes to the repositories. 
-
-You could choose to store the `core-cluster` and `app-cluster` in the same repository and store every ArgoCD-application for the whole organization in a single repository. From a technical standpoint, there is no problem with this solution. It may even be preferred because it will be easier to update the structure for a system requiring changes in multiple clusters simultaneously.
+The ` k8s-ucp-app-gitops` and `k8s-ucp-core-gitops` repository could be merged into a single repository and store every ArgoCD-application for every cluster in a single repository (as shown below). It may even be preferred because it will be easier to update the structure for a system requiring changes in multiple clusters simultaneously.
+On the other hand, you may not want everyone in the organization to have read-access to all infrastructure. The write-access would not be a problem since you can, e.g., use [`CODEOWNERS` on GitHub](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners). 
 
 ```
 root
@@ -464,11 +481,9 @@ root
     └── core-cluster
 ```
 
-On the other hand, you may not want everyone in the organization to have read-access to all infrastructure. The write-access would not be a problem since you can, e.g., use [`CODEOWNERS` on github](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners). 
-
 The main point here is that there are many ways to structure your GitOps synced repositories, and it all depends on what kind of needs you have in your organization. 
 
-Below we can see the folder structure of the `Core Cluster` and `App Cluster`. Most resources that are applied by ArgoCD are structured/built with Kustomize using the [base-overlay-pattern](https://github.com/kubernetes-sigs/kustomize/blob/53cc76fe43c91493d093c2832cc61425aa2972e1/README.md#2-create-variants-using-overlays). This is why we have all the `base` and `overlays` folders. 
+The folder structure of the `Core Cluster` and `App Cluster` can be seen on Figure X. Most resources that are applied by ArgoCD are structured/built with Kustomize using the [base-overlay-pattern](https://github.com/kubernetes-sigs/kustomize/blob/53cc76fe43c91493d093c2832cc61425aa2972e1/README.md#2-create-variants-using-overlays), which is why is why all `base` and `overlays` exist. 
 
 <table>
 <tr>
@@ -480,7 +495,7 @@ Below we can see the folder structure of the `Core Cluster` and `App Cluster`. M
 
 
 ```
-k8s-ucp-app-gitops
+k8s-ucp-app-gitops (repository root)
 ├── argo-bootstrap
 │   ├── prod
 │   └── stage
@@ -509,7 +524,7 @@ k8s-ucp-app-gitops
 <td>
 
 ```
-k8s-ucp-core-gitops
+k8s-ucp-core-gitops (repository root)
 ├── projects            # Declaration of how Argo Applications are grouped
 ├── argo-bootstrap
 │   ├── gcp
@@ -546,18 +561,15 @@ k8s-ucp-core-gitops
 </table>
 
 
-## 10.3. Managing External State
+## 10.4. Managing External State with Crossplane 
 
-In my implementation on a universal control plane, I use Crossplane for managing external resources (e.g databases on AWS and Kubernetes clusters on GCP).
+In my implementation of an universal control plane, I use Crossplane for managing external resources (e.g databases on AWS and Kubernetes clusters on GCP).
 
-<!-- what is crossplane -->
-Crossplane is a control plane that runs inside Kubernetes that makes sure that the external resources described in YAML are in sync with the state declared in Kubernetes.
 
-Crossplane providers are similar to how about Terraform providers work. The developer(?) creates a provider-configuration and is then able to create resources on that provider's infrastructure. It is now up to the provider to manage and ensure that the state running on their infrastructure matches the desired state declared in your Kubernetes cluster.
+In order to authenticate with the cloud provider API, the provider controllers need to have access to credentials. In this case it would be an IAM User for AWS to create a database, a Service Account for GCP or a Service Principal for Azure. Every provider has a type called ProviderConfig that has information about how to authenticate to the provider API.
 
-Currently, Crossplane supports AWS, GCP, and Azure as cloud providers. A DigitalOcean provider is also in active development [[source](https://www.digitalocean.com/blog/announcing-the-digitalocean-crossplane-provider)].
 
-As an example, to provision a database resource on AWS, a developer needs to create a `Provider` (specifying which provider to use), `ProviderConfig` (where to get the credentials for the provider), and a `RDSInstance` (specifying the database properties) and apply it to a Kubernetes cluster with Crossplane installed:
+As an example, to provision a database resource on AWS, a I needs to create a `Provider` (specifying which provider to use), `ProviderConfig` (where to get the credentials for the provider), and a `RDSInstance` (specifying the database properties) and apply it to a Kubernetes cluster with Crossplane installed. A `Provider` and `ProviderConfig` is needed for each crossplane-provider needed in the system [[s]](https://crossplane.io/docs/v1.10/concepts/providers.html).
 
 <table>
 <tr>
@@ -618,14 +630,17 @@ spec:
 </tr>
 </table>
 
-These YAML files are read by a _controller_ (which is provided by the Crossplane-provider as a _helm-chart_). As a developer, you do not care how it is implemented behind the scene; you just know that the controller continuously tries to make sure the desired state is upheld. 
+<!-- These manifests are read by a _controller_ (which is provided by the Crossplane-provider as a _helm-chart_). As a developer, you do not care how it is implemented behind the scene; you just know that the controller continuously tries to make sure the desired state is upheld.  -->
 
-The controller will read the above `RDSInstance` and check that such an instance exists on the AWS account referenced in the `ProviderConfig`'s `credentials`-section. This is how Crossplane is able to create DNS Records, VPCs, Subnets, Node Pools, Kubernetes Clusters, and databases in this setup. All this can be found in the `/gcp-clusters` in the `core-cluster-argo-repo`-directory.
+The controller will read the above `RDSInstance` and check that such an instance exists on the AWS account referenced in the `ProviderConfig`'s `credentials`-section. This is how Crossplane is able to create DNS Records, VPCs, Subnets, Node Pools, Kubernetes Clusters, and databases needed in the demonstration setup to run the Quote App. All the manifests for resources needed in GCP can be found in `/gcp-clusters` in the `core-cluster-argo-repo`-repository.
 
-Depending on which cloud provider you are able to create, most cloud resources are offered by that cloud provider. The reason only "most" resources are offered is that Crossplane and its providers are still in development, and not all resources are implemented yet. < I need an example here >
+<!-- Depending on which cloud provider you are able to create, most cloud resources are offered by that cloud provider. The reason only "most" resources are offered is that Crossplane and its providers are still in development, and not all resources are implemented yet. < I need an example here > -->
 
-<!-- new providers -->
+
+<!-- new providers - discussion?-->
 Crossplane is built to be highly extendable (just like Terraform), making it easy to create new providers. Currently, not many providers exist, but I could imagine for example Datadog could create a Crossplane-provider (equal to their Terraform provider integration), where the user could declared their Datadog dashboard in YAML and apply it to the cluster. With Terraform, the would have to store the Datadog dashboard terraform in for example a bucket bucket on a cloud provider. This works fine in practice, but one could argue that we don't need to store that state in a bucket. Instead, we could simply store the declared state directly in Kubernetes together with the services you are monitoring. 
+
+----
 
 <!-- One instance or multiple instances of crossplane? -->
 Just like ArgoCD, you can either install Crossplane on each cluster or install it in a shared cluster. Just like with ArgoCD, it provides much better visibility only to have a single instance running, making it easier to see which external resources are running outside Kubernetes.
@@ -635,7 +650,7 @@ Running Crossplane on a shared/core cluster also decouples the external resource
 <!-- connection details -->
 An important detail is that when Crossplane creates a resource (e.g., database instance), it stores the connection details in the cluster on which Crossplane is running within. The problem here is that you often need the credentials in app clusters (e.g., you want your services running in the production environment to connect to the production database). There are many ways to handle secrets/credentials, but more on this in the _Distributing secrets_-section.
 
-## 10.4. Distributing secrets
+## 10.5. Distributing secrets
 
 This section will describe a technical detail on how I close the gap between ArgoCD and crossplane. The reader can skip this section if he/she is mainly interested in the overall design of the system.
 
@@ -652,7 +667,7 @@ Another way of doing this is using some kind of secret-vault (like HashiCorp Vau
 
 Therefore I have created a much simpler solution.
 
-As usual, there are many ways of closing a gap, but we need to keep in mind that we want a declarative approach, so we want the distribution to happen eventually and not at a specific step in the rollout of a new cluster or new secret. Therefore, I have implemented a service named `manifest-syncer`. The purpose of the `manifest-syncer` is to mirror secrets from their host cluster to target clusters. The service makes use of `CustomResourceDefinitions`, so the user of the service does not need to configure the service. They just deploy the container and create YAML-files describing what they want to be copied. The developer can then declare what he/she wants to be copied and where. 
+As usual, there are many ways of closing a gap, but we need to keep in mind that we want a declarative approach, so we want the distribution to happen eventually and not at a specific step in the rollout of a new cluster or new secret. Therefore, I have implemented a service named `manifest-syncer` that runs as a container inside Kubernetes. The purpose of the `manifest-syncer` is to mirror secrets from its host cluster to target clusters. The `manifest-syncer` is simple deployed to the cluster with default configuration, and is controlled through `CustomResourceDefinitions`. If a developer wants a Secret to be automatically mirrored/copied from the core cluster to e.g. the production cluster, he/she just creates a manifest describing exactly that. An example of such a manifest can be seen on Figure X. In this example, at is specified that Secrets named `gcp-database-conn`, in namespace `crossplane-system`, should be copied to namespace `default`, on the cluster named `gcp-cluster-prod`.
 
 ```yaml
 apiVersion: dagandersen.com/v1
@@ -670,25 +685,25 @@ spec:
       targetNamespace: default
 ```
 
-In this example, we can see how we specify that the secret named `gcp-database-conn`, in namespace `crossplane-system`, should be copied to namespace `default`, on the cluster named `gcp-cluster-prod`.
+Note: `argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true` is added to ensure that ArgoCD does not fail the deployment because `Syncer` does not exist as a custom resource at deployment time. This can happen when `Syncer`-manifest is *applied* before the `manifest-syncer` is deployed. ArgoCD will fix the failing resources with eventual consistency. 
 
-> Note: `argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true` is added to ensure that ArgoCD does not fail the deployment because `Syncer` does not exist as a custom resource at deployment time. This can happen when `Syncer`-manifest is *applied* before the `manifest-syncer` is deployed. ArgoCD will fix the failing resources with eventual consistency. 
-
-<img src="images/drawings_manifest-syncer-k8s.png" width="750" />
-
-> Figure X: A visualization of how credentials are generated and copied to the app clusters. 
-
-### 10.4.1. Getting access to the App Clusters
+### 10.5.1. Getting access to the App Clusters
 
 In order for the `manifest-syncer` to have access to the App Clusters, it needs a kubeconfig. We do not want to provide or generate this kubeconfig manually each time we create a new cluster. Instead, we want the `manifest-syncer` to fix this automatically without having to change other services. 
 
 The `manifest-syncer` automatically scans its host cluster for secrets generated by Crossplane with a name that contains: `-k8s-`. This alone is not enough because it only gives read access to the cluster. To gain write access, it scans its host cluster for secrets generated by ArgoCD with label: `argocd.argoproj.io/secret-type=cluster` and then retrieves ArgoCD's access token to the App Clusters. The manifest `manifest-syncer` combines the kubeconfig and access token and gets access to the app clusters. The `manifest-syncer` repeats this process every 10 second to continuously detect when new app clusters are created.
 
+<img src="images/drawings_manifest-syncer-k8s.png" width="750" />
+
+> Figure X: A visualization of how credentials are generated and copied to the app clusters. 
+
+On figure X it is illustrated how the `manifest-syncer` running on the `core-cluster` reads ArgoCD's access token and the kubeconfigs (generated by Crossplane) to copy the database-credentials (generated by Crossplane) to the `App clusters`.
+
 One could argue that it is bad practice to build your own small services like this because you need to maintain them yourself - but since the service is self-contained and does not directly interact with other services, it can easily be replaced by a better solution, should a company choose to invest in a more mature solution (like installing a secret-vault).
 
 # 11. Demonstration Application running in Google Cloud
 
-Continuing from the _Demonstration Application_-section, we now have all the pieces to run the Quote Application in a multi-environment spanning across multiple cloud providers.
+Continuing from the _Demonstration Application_-section, we now have all the pieces to run the Quote App in a multi-environment spanning across multiple cloud providers.
 
 For demonstration purposes, the Kubernetes clusters will run in GCP while the managed database will run in AWS to show that this kind of setup works across different cloud providers. On GCP, there will be two environments running: _production_ and _staging_. Each environment runs in its own VPN (and subnetwork) and has its own subdomain on GCP. Both environments can connect to the database running on AWS. This architecture is for demonstration purposes. This paper is not arguing that this is good software architecture.
 
@@ -847,7 +862,7 @@ This was not possible (at least on GCP), because IP-addresses are dynamically as
 
 > Figure X: xxxx
 
-Those 3 IP-addresses are hardcoded into the DNS records declared in YAML and in the Nginx-Controllers deployed by ArgoCD. Nginx needs to know which reserved IP-address to use, otherwise, it will just pick one at random.
+Those 3 IP-addresses are hardcoded into the DNS records declared in manifests and in the Nginx-Controllers deployed by ArgoCD. Nginx needs to know which reserved IP-address to use, otherwise, it will just pick one at random.
 
 _To conclude:_ With GCP and Nginx, you need to reserve IP-addresses beforehand if you want the rest of the system to be fully declared as code. If the DNS records were not needed, then the reserved IP-addresses and hardcode IP-addresses were not needed, and _everything_ could be stored as code.
 
