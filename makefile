@@ -135,11 +135,11 @@ apps-bootstrap:
 
 start:
 	@printf 'Utilizing Kubernetes as an universal control plane!' | $(echo-header)
-	@printf 'Which core cluster should we create for you?' | $(echo-question)
+	@printf 'Where should the core cluster be created?' | $(echo-question)
 	@CORE=$$(gum choose "local" "gcp") && \
 	printf "Answer: \n$${CORE}" | $(echo-answer) && \
 	printf 'What should be installed?' | $(echo-question) && \
-	OPTIONS=$$(gum choose "skip" "prod-cluster" "stage-cluster" "gcp-database-example" "aws-database-example" --no-limit) && \
+	OPTIONS=$$(gum choose "skip" "prod-cluster" "stage-cluster" "quote-app-with-gcp-database" "quote-app-with-aws-database" --no-limit) && \
 	printf "Answer: \n$${OPTIONS}" | $(echo-answer) && \
 	make start-internal CORE=$${CORE} OPTIONS=" $$(echo $${OPTIONS}) "
 
@@ -153,8 +153,8 @@ start-internal:
 	@APPS="application-bootstrap-prod application-bootstrap-stage infrastructure-bootstrap crossplane gcp-provider aws-provider manifest-syncer" && \
 	if [[ "$(OPTIONS)" == *"prod-cluster"* ]];			then APPS="$${APPS} gcp-cluster-prod"; fi && \
 	if [[ "$(OPTIONS)" == *"stage-cluster"* ]];			then APPS="$${APPS} gcp-cluster-stage"; fi && \
-	if [[ "$(OPTIONS)" == *"gcp-database-example"* ]];	then APPS="$${APPS} gcp-database"; fi && \
-	if [[ "$(OPTIONS)" == *"aws-database-example"* ]];	then APPS="$${APPS} aws-database"; fi && \
+	if [[ "$(OPTIONS)" == *"quote-app-with-gcp-database"* ]];	then APPS="$${APPS} gcp-database"; fi && \
+	if [[ "$(OPTIONS)" == *"quote-app-with-aws-database"* ]];	then APPS="$${APPS} aws-database"; fi && \
 	make sync-apps APPS="$${APPS}"
 	@if [[ "$(OPTIONS)" == *"prod-cluster"* ]]; then\
 			make wait-for-cluster-prod add-gcp-cluster-prod && \
@@ -178,26 +178,26 @@ database-example-%:
 
 stop:
 	@printf 'STOPPING' | $(echo-header)
-	@printf 'Which core cluster should we delete for you?' | $(echo-question)
+	@printf 'Which core cluster should be deleted?' | $(echo-question)
 	@CORE=$$(gum choose "skip" "local" "gcp") && \
 	printf "Answer: \n$${CORE}" | $(echo-answer) && \
 	printf 'What should be stopped before stopping core?' | $(echo-question) && \
-	OPTIONS=$$(gum choose "skip" "prod-cluster" "stage-cluster" "gcp-database-example" "aws-database-example" --no-limit) && \
+	OPTIONS=$$(gum choose "skip" "prod-cluster" "stage-cluster" "quote-app-with-gcp-database" "quote-app-with-aws-database" --no-limit) && \
 	printf "Answer: \n$${OPTIONS}" | $(echo-answer) && \
 	make stop-internal CORE=$${CORE} OPTIONS=" $$(echo $${OPTIONS}) "
 
 stop-internal:
-	@if [[ "$(OPTIONS)" == *"aws-database-example"* ]];	then APPS="$${APPS} aws-database prod-quote-app-with-database-aws stage-quote-app-with-database-aws"; fi && \
-	if [[ "$(OPTIONS)" == *"gcp-database-example"* ]];	then APPS="$${APPS} gcp-database prod-quote-app-with-database-gcp stage-quote-app-with-database-gcp"; fi && \
+	@if [[ "$(OPTIONS)" == *"quote-app-with-aws-database"* ]];	then APPS="$${APPS} aws-database prod-quote-app-with-database-aws stage-quote-app-with-database-aws"; fi && \
+	if [[ "$(OPTIONS)" == *"quote-app-with-gcp-database"* ]];	then APPS="$${APPS} gcp-database prod-quote-app-with-database-gcp stage-quote-app-with-database-gcp"; fi && \
 	if [[ "$(OPTIONS)" == *"prod-cluster"* ]];			then APPS="$${APPS} gcp-cluster-prod"; fi && \
 	if [[ "$(OPTIONS)" == *"stage-cluster"* ]];			then APPS="$${APPS} gcp-cluster-stage"; fi && \
 	make delete-apps APPS="$${APPS}"
-	@if [[ "$(OPTIONS)" == *"gcp-database-example"* ]]; then\
+	@if [[ "$(OPTIONS)" == *"quote-app-with-gcp-database"* ]]; then\
 		$(spin) "Waiting for gcp database to be deleted" -- \
 			make wait-for-delete-database-gcp && \
 		printf "gcp Database deleted" | $(echo-info); \
 	fi
-	@if [[ "$(OPTIONS)" == *"aws-database-example"* ]]; then\
+	@if [[ "$(OPTIONS)" == *"quote-app-with-aws-database"* ]]; then\
 		$(spin) "Waiting for aws database to be deleted" -- \
 			make wait-for-delete-database-aws && \
 		printf "aws Database deleted" | $(echo-info); \
