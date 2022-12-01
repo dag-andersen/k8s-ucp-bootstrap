@@ -1,6 +1,6 @@
 Utilizing Kubernetes as an universal control plane
 <!-- 
-IMPORTANT LINK: https://blog.crossplane.io/crossplane-vs-k8s-ucp-bootstrapstructure-addons/
+IMPORTANT LINK: https://blog.crossplane.io/crossplane-vs-cloud-infrastructure-addons/
 IMPORTANT LINK: https://blog.crossplane.io/announcing-terrajet/
 https://faun.pub/how-to-build-a-gitops-workflow-with-argocd-kustomize-and-github-actions-f919e7443295
 
@@ -58,14 +58,10 @@ It is called Kubernetes objects and not Kubernetes resources.
 - Skriv Conclusion
 - Overvej om Challenges with managing state with terraform burde skrives om til 3 punkter. 
 - No preview compared to terraform.
-- brug mere life-cycle management. 
-- forklar hvad crossplane er og argocd er.
 - skriv afsnit om hvor ustabil GKE er. 
 - Apps of Apps pattern.
 - husk link til repo.
-- I assume that the reader is familiar with Kubernetes, its concepts, and terminology. 
 
-"Using control planes means relinquishing control. Therefore seasoned SRE teams may feel a reluctance in trusting the control plane.", https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes
 
 -->
 # 1. Abstract
@@ -112,36 +108,36 @@ This explains the concept of control planes and how to build kubernetes as an un
   - [7.1. Terraform](#71-terraform)
     - [7.1.1. Barrier of entry](#711-barrier-of-entry)
     - [7.1.2. Challenges with managing terraform state](#712-challenges-with-managing-terraform-state)
-  - [8. From Terraform to control planes.](#8-from-terraform-to-control-planes)
-- [9. Demonstration Application](#9-demonstration-application)
-- [10. Implementation](#10-implementation)
-  - [10.1. Technologies and tools used](#101-technologies-and-tools-used)
-  - [10.2. ArgoCD and Crossplane together](#102-argocd-and-crossplane-together)
-  - [10.3. Managing internal state with ArgoCD](#103-managing-internal-state-with-argocd)
-    - [10.3.1. Eventual consistency](#1031-eventual-consistency)
-    - [10.3.2. Repository structure](#1032-repository-structure)
-  - [10.4. Managing External State with Crossplane](#104-managing-external-state-with-crossplane)
-  - [10.5. Distributing secrets](#105-distributing-secrets)
-    - [10.5.1. Getting access to the App Clusters](#1051-getting-access-to-the-app-clusters)
-- [11. Demonstration Application running in Google Cloud](#11-demonstration-application-running-in-google-cloud)
-  - [11.1. Use in practice](#111-use-in-practice)
-    - [11.1.1. Developer creating a new service with an associated database](#1111-developer-creating-a-new-service-with-an-associated-database)
-    - [11.1.2. Deploying a new service version to the multiple cloud environments](#1112-deploying-a-new-service-version-to-the-multiple-cloud-environments)
-    - [11.1.3. Spinning up the cluster from scratch](#1113-spinning-up-the-cluster-from-scratch)
-- [12. Discussion and evaluation of implementation](#12-discussion-and-evaluation-of-implementation)
-  - [12.1. Build pipelines are still required](#121-build-pipelines-are-still-required)
-  - [12.2. Additional costs](#122-additional-costs)
-  - [12.3. Not _everything_ can be checked into code](#123-not-everything-can-be-checked-into-code)
-  - [12.4. Single interface](#124-single-interface)
-  - [12.5. Platform Engineering](#125-platform-engineering)
-  - [12.6. Pets to Cattle : Denne title passer bedre til eliminating state.](#126-pets-to-cattle--denne-title-passer-bedre-til-eliminating-state)
-  - [12.7. Streamlining your codebase](#127-streamlining-your-codebase)
-  - [12.8. Bootstrapping Problem](#128-bootstrapping-problem)
-  - [12.9. Multiple core-clusters](#129-multiple-core-clusters)
-  - [12.10. Maturity level](#1210-maturity-level)
-  - [12.11. Eliminating state](#1211-eliminating-state)
-- [13. Conclusion](#13-conclusion)
-- [14. References](#14-references)
+  - [7.2. From Terraform to control planes.](#72-from-terraform-to-control-planes)
+- [8. Demonstration Application](#8-demonstration-application)
+- [9. Implementation](#9-implementation)
+  - [9.1. Technologies and tools used](#91-technologies-and-tools-used)
+  - [9.2. ArgoCD and Crossplane together](#92-argocd-and-crossplane-together)
+  - [9.3. Managing internal state with ArgoCD](#93-managing-internal-state-with-argocd)
+    - [9.3.1. Eventual consistency](#931-eventual-consistency)
+    - [9.3.2. Repository structure](#932-repository-structure)
+  - [9.4. Managing External State with Crossplane](#94-managing-external-state-with-crossplane)
+  - [9.5. Distributing secrets](#95-distributing-secrets)
+    - [9.5.1. Getting access to the App Clusters](#951-getting-access-to-the-app-clusters)
+- [10. Demonstration Application running in Google Cloud](#10-demonstration-application-running-in-google-cloud)
+  - [10.1. Use in practice](#101-use-in-practice)
+    - [10.1.1. Spinning up the cluster from scratch](#1011-spinning-up-the-cluster-from-scratch)
+    - [10.1.2. Developer creating a new service with an associated database](#1012-developer-creating-a-new-service-with-an-associated-database)
+    - [10.1.3. Deploying a new service version to the multiple cloud environments](#1013-deploying-a-new-service-version-to-the-multiple-cloud-environments)
+- [11. Discussion and evaluation of implementation](#11-discussion-and-evaluation-of-implementation)
+  - [11.1. Build pipelines](#111-build-pipelines)
+  - [11.2. Additional costs](#112-additional-costs)
+  - [11.3. No preview with Crossplane](#113-no-preview-with-crossplane)
+  - [11.4. Single interface](#114-single-interface)
+  - [11.5. Platform Engineering](#115-platform-engineering)
+  - [11.6. Pets to Cattle : Denne title passer bedre til eliminating state.](#116-pets-to-cattle--denne-title-passer-bedre-til-eliminating-state)
+  - [11.7. Declaring the entire infrastructure](#117-declaring-the-entire-infrastructure)
+  - [11.8. Bootstrapping Problem](#118-bootstrapping-problem)
+  - [11.9. Multiple core-clusters](#119-multiple-core-clusters)
+  - [11.10. Maturity level](#1110-maturity-level)
+  - [11.11. Eliminating state](#1111-eliminating-state)
+- [12. Conclusion](#12-conclusion)
+- [13. References](#13-references)
 
 
 # 3. Dictionary and abbreviations
@@ -293,7 +289,7 @@ Another challenge with Terraform state is that Terraform's state can easily go o
 
 In some cases it might be beneficial to modify the terraform-created-resource manually through some other service if an infrastructure-related emergency happens. An example of this would be a person changing a network rule manually through Google Cloud Platform web-interface in the middle, because a service needed to use a new IP address and it needed to be fixed as soon as possible. This would not be possible if the IoC configuration tool did not allow _configuration drift_.
 
-## 8. From Terraform to control planes.
+## 7.2. From Terraform to control planes.
 
 <!--
 So the Terraform state can either be updated by:
@@ -316,7 +312,7 @@ Even though the paper highlights Crossplane as a tool, the question is not so mu
 
 <!-- Crossplane will be described in greater detail in the _Managing External State_-section.  -->
 
-# 9. Demonstration Application
+# 8. Demonstration Application
 
 In order to verify and demonstrate that the universal control plane I have built (presented in the _Implementation_-section) actually works, I need a demonstration application that runs on infrastructure managed by the universal control plane to demonstrates its capabilities. 
 
@@ -338,7 +334,7 @@ The business may want multiple environments like _production_, _staging_, and _d
 
 This architecture demonstrates the universal control plane's multi-cloud and multi-environment capabilities. The evaluation of this project will partially be based on how well the implemented universal control plane manages to host/deploy/run this demonstration application and what implications and challenges it may result in.
 
-# 10. Implementation
+# 9. Implementation
 
 <!-- what will be in this Implementation-section? -->
 This section describes how I suggest building a universal control plane within Kubernetes for handling internal and external resources. The implementation strives to imitate a production-ready system for a hypothetical company with a website running in a production and staging environment in the cloud.
@@ -352,7 +348,7 @@ The main design idea of this implementation is to have a single cluster that wor
 
 Only the infrastructure teams are supposed to interact with `core cluster` directly - while the application developers are supposed to only care about getting their workload running on the `app cluster`s. The design is visualized in Figure X.
 
-## 10.1. Technologies and tools used
+## 9.1. Technologies and tools used
 
 **Amazon Web Services**
 AWS was chosen as the cloud provider for a simple managed cloud database. AWS is one of the officially supported providers for Crossplane [[s]](https://crossplane.io/docs/v1.10/reference/configure.html). Both Azure or GCP would be a would be a potential alternatives to AWS in this implementation.
@@ -397,7 +393,7 @@ If a multi-cloud architecture is not needed, one could instead opt for Google's 
 <!-- Transitioning -->
 It can be a big jump to rewrite your entire infrastructure to use control planes instead of Terraform, which is why tools like _Kubeform_[[s]](https://kubeform.com/) and _the Terraform provider for Crossplane_ exist[[s]](https://github.com/.crossplane-contrib/provider-terraform). Kubeform provides auto-generated Kubernetes Custom Resource Definitions (CRDs) for Terraform resources so that you can manage any cloud infrastructure in a Kubernetes native way. This requires you to rewrite your HCL to Kubernetes CRDs, so if that is too time-consuming, you can instead use Crossplane's Terraform provider. This provider lets you copy-paste your Terraform syntax directly into a CRD, and Crossplane will, in concept, run `terraform apply` automatically. This could be an intermediate step before doing a complete transition from Terraform to Crossplane. 
 
-## 10.2. ArgoCD and Crossplane together
+## 9.2. ArgoCD and Crossplane together
 
 <!-- intro to ArgoCD and Crossplane -->
 The `core cluster` uses Crossplane for provisioning cloud resources and use ArgoCD to deploy and manage all services that are running in the `core cluster` and the `app clusters`. Crossplane and ArgoCD are both open-source control plane based tools funded by the CNCF. ArgoCD handles all internal state (e.g. deploying containers and configuration), while Crossplane handles all external states (e.g. provisioning cloud resources) - combined, they can be used as a universal control plane for managing multi-cloud multi-environment infrastructure. 
@@ -416,7 +412,7 @@ As mentioned previously, the question is not whether Crossplane or ArgoCD are gr
 <!-- move to discussion? -->
 This setup can be extended by other tools. Crossplane focuses currently on cloud providers, so if a user wants to manage external resources that are not cloud-related, the user could simply install a control plane for that as well. The main point is that only ArgoCD and Crossplane are necessary for the use cases presented in this paper, but other control planes could easily be added if more features were needed.
 
-## 10.3. Managing internal state with ArgoCD
+## 9.3. Managing internal state with ArgoCD
 
 <!-- intro -->
 Everything deployed to the `core-clusters` (besides ArgoCD itself) and the `app-clusters` are declared in manifests, checked into git, and synced by ArgoCD. 
@@ -450,7 +446,7 @@ Prometheus and Grafana is a open-source monitoring stack. This stack is not stri
 **Manifest-Syncer**
 `manifest-syncer` is custom service i developed to sync secrets between the `core cluster` and the `app clusters`. This service will be described in detail in section: XXXX.
 
-### 10.3.1. Eventual consistency
+### 9.3.1. Eventual consistency
 
 <!-- intro -->
 At its core, all ArgoCD does is that it reads from a given branch on a given repository and applies all the resources that it finds to Kubernetes. By default, there is no order to this process, but ArgoCD will simply apply all the manifests, and then Kubernetes will handle the rest (like scheduling _Pods_ and _Jobs_).
@@ -460,7 +456,7 @@ In any modern software environment, there exist dependencies. The number of depe
 
 Applying Kubernetes resources with ArgoCD works the same way. If ArgoCD can't deploy an ArgoCD Applications (because some dependency may be missing), it will just automatically try again a minute later. This means I can apply our entire infrastructure at once with ArgoCD, and ArgoCD will make sure everything will be deployed with eventual consistency even though there are broken dependencies temporarily in the process. This also applies every time you update something in the infrastructure. Configuration and workload will be applied and scheduled whenever ArgoCD eventually syncs its state with what is stored in the chosen git repository. An example of this is that the quote-app-frontend will fail to deploy if Nginx is not installed in the cluster at deployment time. ArgoCD will keep trying to deploy the quote-app-frontend' ingress configuration until nginx eventually exists in the cluster. 
 
-### 10.3.2. Repository structure
+### 9.3.2. Repository structure
 
 The structure for my implementation of a universal control plane is split up into 3 repositories: One ArgoCD synced repository for the `core-cluster`, a second ArgoCD synced repository for syncing with `app-cluster`, and finally, a general repository with code and scripts for bootstrapping the system.
 
@@ -574,7 +570,7 @@ k8s-ucp-core-gitops (repository root)
 </table>
 
 
-## 10.4. Managing External State with Crossplane 
+## 9.4. Managing External State with Crossplane 
 
 In my implementation of an universal control plane, I use Crossplane for managing external resources (e.g databases on AWS and Kubernetes clusters on GCP).
 
@@ -665,7 +661,7 @@ Running Crossplane on a shared/core cluster also decouples the external resource
 <!-- connection details -->
 An important detail is that when Crossplane creates a resource (e.g., database instance), it stores the connection details in the cluster on which Crossplane is running within. The problem here is that you often need the credentials in app clusters (e.g., you want your services running in the production environment to connect to the production database). There are many ways to handle secrets/credentials, but more on this in the _Distributing secrets_-section.
 
-## 10.5. Distributing secrets
+## 9.5. Distributing secrets
 
 This section will describe a technical detail on how I close the gap between ArgoCD and crossplane. The reader can skip this section if he/she is mainly interested in the overall design of the system.
 
@@ -701,7 +697,7 @@ spec:
 
 Note: `argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true` is added to ensure that ArgoCD does not fail the deployment because `Syncer` does not exist as a custom resource at deployment time. This can happen when `Syncer`-manifest is *applied* before the `manifest-syncer` is deployed. ArgoCD will fix the failing resources with eventual consistency. 
 
-### 10.5.1. Getting access to the App Clusters
+### 9.5.1. Getting access to the App Clusters
 
 In order for the `manifest-syncer` to have access to the App Clusters, it needs a kubeconfig. I do not want to provide or generate this kubeconfig manually each time I create a new cluster. Instead, I want the `manifest-syncer` to fix this automatically without having to change other services. 
 
@@ -715,7 +711,7 @@ On figure X it is illustrated how the `manifest-syncer` running on the `core-clu
 
 One could argue that it is bad practice to build your own small services like this because you need to maintain them yourself - but since the service is self-contained and does not directly interact with other services, it can easily be replaced by a better solution, should a company choose to invest in a more mature solution (like installing a secret-vault).
 
-# 11. Demonstration Application running in Google Cloud
+# 10. Demonstration Application running in Google Cloud
 
 Continuing from the _Demonstration Application_-section, we now have all the pieces to run the Quote App in a multi-environment spanning across multiple cloud providers.
 
@@ -740,146 +736,158 @@ The production and staging environment run completely separately on GCP. This de
 <!-- Universal control Den her virker underlig.-->
 All the resources and objects seen in Figure X are managed by ArgoCD and Crossplane, which is running in the Core cluster, acting as a universal control plane for provisioning infrastructure and deploying workloads. 
 
-## 11.1. Use in practice
+## 10.1. Use in practice
 
-The following section describes how to use this implementation of a universal control plane and how a software team would develop and deploy services running in `app clusters` such as production-cluster.
+The following section describes how to use this implementation of the universal control plane (the `core cluster`) and how a software team would develop and deploy services running in `app clusters` such as production-cluster. 
 
-So far, this paper has explained what control planes are and how one can build an entire infrastructure setup only using Kubernetes. 
+The _implementation_-section described how one instance of a system using Kubernetes and control planes could look, but it but we still need to cover how we use the setup after creation. The setup/system needs to be maintainable and modifiable over time. 
 
-The _implementation_-section described how one instance of a system using Kubernetes and control planes could look, but we still need to cover how we use the setup after creation. The setup/system needs to be maintainable and modifiable over time. 
+There are different methods and strategies when it comes to the deployment of software. This paper gives an example of how to use ArgoCD together with Crossplane, but others may choose to structure their code differently. For example if a user chooses to use FluxCD (instead of ArgoCD) and Google's Config Connector, the optimal structure may look very different. 
 
-There are many methods and strategies when it comes to the deployment of software. This paper gives an example of how to use ArgoCD together with Crossplane, but others may choose to structure their code differently. For example if a user chooses to use FluxCD (instead of ArgoCD) and Google's Config Connector, the optimal structure may look very different. 
+<!-- discussion? -->
+Furthermore, keep in mind that many of the tools used in this setup are under active development, so the feature set of these tools may change in the future and change the workflows. 
 
-If we want to convince ourselves that this is actually an elegant setup, we first need to envision how it would be used in practice in a company.
+<!-- If we want to convince ourselves that this is actually an elegant setup, we first need to envision how it would be used in practice in a company. -->
 In this section, I will go through some examples of how such a system would work in practice if implemented in a company. 
 
 *The use cases are:*
 
+- Spinning up the cluster from scratch
 - Developer creating a new service with an associated database
 - Deploying a new service version to multiple cloud environments
-- Spinning up the cluster from scratch
 
-> These use-case examples assume that the folder-structure is the same as described in the _Repository Structure_-section.
+These use-case examples assume that the folder-structure is the same as described in the _Repository Structure_-section.
 
-> Keep in mind that many of the tools used in this setup are under active development, so the feature set of these tools may change in the future and change the workflows. 
+### 10.1.1. Spinning up the cluster from scratch
 
-### 11.1.1. Developer creating a new service with an associated database
+Starting the `core cluster`, multiple `app clusters`, and deploying every service/system described in the _managing internal state_-section can be done in 4 steps.
 
-_So how would the workflow be if a developer wants to create a new service with a new database instance?_
-
-> Dette skal ikke være et spørgsmål. og ikke i kursiv.
-
-1. The developer creates a _pull request_ to the `core-cluster-gitops-repo` with the YAML describing the database instance and a `syncer` object for distributing the connection details to the database (as explained in _Distributing secrets_-section )
-2. The developer creates a _pull request_ to the `app-cluster-gitops-repo` with the YAML describing all Kubernetes objects required. This could, for instance, be YAML describing `ingress`, `service`, and `deployment` as with the demonstration application.
-
-Depending on the policy for this imaginary company, it may be a person from the infrastructure team approving the provisioning of this new database, while it may be someone from the development team approving the normal app-related Kubernetes resources.
-
-<img src="images/drawings_repo-pr.png" width="800" />
-
-> Figure X: This image shows how the developer creates/deploys new services with databases.
-
-### 11.1.2. Deploying a new service version to the multiple cloud environments
-
-_So, how would the workflow be if a developer wants to update their service on the production/staging cluster?_
-
-Most ArgoCD resources in this setup are generated using Kustomize. Kustomize uses a folder pattern, where each configuration for a service is stored in the `overlay` folder. In this case, the configuration _service A_ for the production environment would be stored in `service-a/overlays/prod/`.
-
-Let us assume a developer has a containerized service named: `service-a`. When a new version of `service-a` needs to be deployed, the developer creates a new _pull request_ with the committed changes. If commits are not on the main/master branch, then the build pipeline builds the image and pushes it to, e.g., Docker Hub with a unique tag. In addition, the pipeline also updates the service version in git-ops controlled repository with all the new tags. In this case, the build system updates the `kustomization`-file in `/service-a/overlays/stage/` with the newest version that should be deployed to the staging cluster.
-
-When the changes have been tested on the staging cluster, and the PR has been merged into master/main, then the same process begins. The only difference is that the build-pipeline this time updates the `/service-a/overlays/prod/` instead. 
-
-<img src="images/drawings_image-update.png" width="800" />
-
-The _Argo Project_ (the organization behind all Argo tools) does not provide any opinionated standardized way of pushing a new commit with the new image tag/version. This usually ends up with each organization/team making their own custom code for doing commit push to the GitOps-synced repository. 
-
-### 11.1.3. Spinning up the cluster from scratch
-
-_So, how would the workflow be if an infrastructure engineer wants to spin up the entire setup from scratch?_ Essentially, spinning up a `core cluster`, multiple `app clusters`, and deploying every service/system described in the _managing internal state_-section from nothing.
-
-1. Git pull the `scripts-repo`/`bootstrap repo`.
+1. Git pull the `k8s-ucp-bootstrap`-repository [[s]](https://github.com/dag-andersen/k8s-ucp-bootstrap).
 2. Run `make install-tools` in the root to pull down the dependencies.
 3. Add your Cloud Provider and Git-repo credentials to the `./creds/`-folder.
-4. Run `make start` in the root to start the interactive cli for choosing what resources to create.
+4. Run `make start` in the repository-root to start the interactive cli for choosing what resources to create.
+
+Running `make start` will show the following terminal printout shown in Figure X.
 
 <img src="images/make-1.png" width="600" />
 
-This interactive-CLI can be replaced with something else e.g., it would be possible to replace the CLI with a simple UI if that is preferred. 
+<!-- This interactive-CLI can be replaced with something else e.g., it would be possible to replace the CLI with a simple UI if that is preferred.  -->
 
-First, specify if you want the `core-cluster` to run locally with `kind` or if you want it to run on _Google Cloud Platform_.
-Other options can be added relatively easily by adding scripts to the bootstrap-repo.
+First, specify if the `core-cluster` should run locally with Kind or on GCP.
 
-> choosing `local` is preferred when developing since it takes around 10 minutes to spin up a GCP cluster, and it only takes 20 sec to spin up a local kind cluster.
+<!-- Other options can be added relatively easily by adding scripts to the bootstrap-repo. -->
+
+Choosing `local` is preferred when developing since it takes around 10 minutes to spin up a cluster on GCP, and it only takes 20 seconds to spin up a local Kind cluster.
 
 <img src="images/make-2.png" width="600" />
 
-Secondly, you specify what `App clusters` you want and if you want to spin up the demonstration application. If you choose `skip` only the `core cluster` will be started. You can run the `make start` command as many times as you want. It will detect that you already have a cluster running and ask if you want to delete the currently running version.
+Secondly, specify what `App clusters` should be created (production or staging) and if the Quote App should be deployed together with an associated database. Choosing `skip` only starts the `core cluster`. To deploy the Quote App at a later point, just run the `make start`-command again and select `quote-app-with-aws-database` or `quote-app-with-gcp-database`. It will detect that you already have a `core-cluster` running and deploy the Quote App and provision a database on AWS.
 
-By default (by choosing `skip`), the script will spin up a local containerized Kubernetes cluster using _kind_ and install ArgoCD and deploy Nginx (so you can connect to the cluster). ArgoCD will then apply all the Crossplane-related setup and apply the `manifest-syncer`. Now that the baseline is set, the `core cluster` can be used as a control plane for spinning up external cloud resources and deploying apps to external Kubernetes clusters.  
+By choosing `skip`, the script will spin up the `core cluster` install ArgoCD and deploy Nginx. ArgoCD will then apply all the Crossplane-related manifests and deploy the `manifest-syncer`. Now that the core components are running and the `core cluster` can be used as a control plane for spinning up cloud resources and deploying apps to external Kubernetes clusters.
 
-The time it takes to spin up the whole system depends on if you run the core cluster locally or on GCP. Spinning up a GKE cluster on GCP takes around 10 minutes [[source](https://learn.hashicorp.com/tutorials/terraform/gke)]. So, if you run your `core cluster` locally, it results in a _~15_ minutes process to spin up the entire system, of which 10 are only waiting for GCP to create the `app clusters`. If you run your `core cluster` on GCP, you must wait an initial 10 minutes before the core cluster is created, resulting in a combined wait time of _~25_ minutes to spin up the entire system. 
+The time it takes from the `make start`-command is run till the Quote App is running and accessable through a webbrowser depends on if the `core cluster` locally or on GCP. Provisioning a GKE cluster on GCP takes around 10 minutes [[source](https://learn.hashicorp.com/tutorials/terraform/gke)]. So if `core cluster` is chosen to run on GCP, then it will take about 10 minutes longer than if local was chosen. Overall, choosing `local` results in a start time of around 15 minutes and choosing `gcp` results in a start time of around 25 minutes. 
 
-# 12. Discussion and evaluation of implementation
+### 10.1.2. Developer creating a new service with an associated database
+
+If a developer wants to create a deploy an application to e.g. the staging cluster together with a database instance the flow would look something like this:
+
+1. The developer creates a _pull request_ to the `core-cluster-gitops-repo` with the manifests describing the database instance and a `syncer` object for distributing the connection details to the database (as explained in _Distributing secrets_-section)
+2. The developer creates a _pull request_ to the `app-cluster-gitops-repo` with the manifests describing the application. This could, for instance, be manifests describing `Ingress`, `Services`, and `Deployments` as with APP Cluster.
+
+Depending on the size and policies of this imaginary company, it could for example be a person from the infrastructure team approving the provisioning of this new database, while it may be someone from the development team approving the normal application-related Kubernetes resources (as illustrated in Figure X).
+
+<img src="images/drawings_repo-pr.png" width="800" />
+
+> Figure X
+
+### 10.1.3. Deploying a new service version to the multiple cloud environments
+
+If a developer wants to update an application on the production or staging cluster the flow would look something like this:
+
+Most ArgoCD resources in this setup are generated using Kustomize. Kustomize uses a folder-pattern, where each configuration for a service is stored in the `overlay` folder. In this case, the configuration _service A_ for the production environment would be stored in `organization-name/service-a/overlays/prod/`.
+
+Let us assume a developer has a containerized service named: `service-a`. When a new version of `service-a` needs to be deployed, the developer creates a new _pull request_ with the committed changes. If the commits are not on the main/master branch, then the build pipeline builds the image and pushes it to, e.g., Docker Hub with a unique tag. In addition, the pipeline also updates the service version in `app-cluster-gitops-repo`-repository with the new tags. In this case, the build system updates the `kustomization`-file in `organization-name/service-a/overlays/stage/` with the newest version that should be deployed to the staging cluster.
+
+When the changes have been tested on the staging cluster, and the PR has been merged into master/main, then the same process begins. The only difference is that the build-pipeline this time updates the `organization-name/service-a/overlays/prod/` instead. 
+
+<img src="images/drawings_image-update.png" width="800" />
+
+The _Argo Project_ (the organization behind all Argo tools) does not provide any opinionated standardized way of pushing a new commit with the new image tag/version. So developers have to write this custom code for pushing an updated to the GitOps-synced repository themselves. 
+
+# 11. Discussion and evaluation of implementation
 
 I have now explained how control planes work and how to build an entire system based on control planes and I have shown how such a system could be used in practice. 
 
-This section discusses some of the challenges and limitations of using Kubernetes as a universal control plane. These topics will give Eficode a better baseline (helge kan ikke lide dette ord. Han foreslå "idea") for discussing pros and cons with their clients when discussing if they should transition to control planes. 
+This section discusses some of the challenges and limitations of using Kubernetes as a universal control plane. These topics will give Eficode a better baseline (helge kan ikke lide dette ord. Han foreslå "idea") for discussing pros and cons with their clients when discussing if they should transition control plane managed infrastructure. 
 
 Each topic covered in this section will not be described in detail but will mostly be highlighted as my observations and opinion of what to keep in mind when deciding to move to control plane managed infrastructure and what to keep in mind when designing a production-ready system in a company. It is difficult to give a definite conclusion on each of these topics since it all comes down to the specific tools and the exact implementation a company chooses to implement. 
 
 The discussion topics are:
-- Build pipelines are still required
+- Build pipelines
 - Additional cost
-- Not _everything_ can be checked into code
-- Single surface area
+- No preview with Crossplane
+- Single interface
 - Platform Engineering
 - Pets to Cattle
-- Streamlining your codebase
+- Declaring the entire infrastructure
 - Bootstrapping Problem
 - Multiple core-clusters
 - Maturity level
 - Eliminating state
 
-## 12.1. Build pipelines are still required
+## 11.1. Build pipelines
 
-Switching to a GitOps workflow with tools like ArgoCD will not eliminate the need for pipelines. With the demonstrated setup, you still need some kind of build-pipeline that runs whenever you have a new version of your app.
+Switching to a GitOps workflow with tools like ArgoCD still requires using pipelines. With the demonstrated setup, you still need some kind of build-pipeline that runs whenever you have a new version of your app.
 
 <img src="images/drawings_pipeline-types.png" width="800" />
 
 > Figure X: The image shows 3 different ways of building deployment systems.
 
-CI/CD pipelines often consist of 4 steps: _pull source code_, _build code_, _test code_, and _deploy_ [[s]](https://www.weave.works/blog/gitops-fully-automated-ci-cd-pipelines). With Kubernetes that results in _pull source code_, _build and push image_, _test code/image_, _deploy by appling YAML to kubernetes_ with `kubectl`. ArgoCD introduces a new step where the gitops-synced-repo is updated (there is no standardized way of updating this gitops-synced-repo, so it can be  with a custom script that pushes a new version to the repo). So, with ArgoCD, there are still 4 steps in the pipeline: The last step is just replaced with updating a repo instead of applying YAML changes to the cluster directly.
+CI/CD pipelines often consist of 4 steps: _pull source code_, _build code_, _test code_, and _deploy_ [[s]](https://www.weave.works/blog/gitops-fully-automated-ci-cd-pipelines). With Kubernetes that results in _pull source code_, _build and push image_, _test code/image_, _deploy by appling manifests to kubernetes_ with `kubectl`. ArgoCD introduces a new step where the gitops-synced-repo is updated (there is no standardized way of updating this gitops-synced-repo, so it can be  with a custom script that pushes a new version to the repo). So, with ArgoCD, there are still 4 steps in the pipeline: The last step is just replaced with updating a repo instead of applying manifest changes to the cluster directly.
 
-So, in that sense, we have not optimized much. We still have 3 steps in the deployment pipeline if we use GitOps/ArgoCD, but we have now removed the need for direct access to the cluster from the pipelines. Instead, the pipeline needs access to the repo, where it is supposed to push the changes.
+So, in that sense, I have not optimized much. I still have 4 steps in the deployment pipeline if we use GitOps/ArgoCD, but we have now removed the need for direct access to the cluster from the pipelines. Instead, the pipeline needs access to the repo, where it is supposed to push the changes.
 
-As described in the _Declarative vs. Imperative_-section declarative configurations are preferred since XXXXXX. All the steps in the pipelines are so far imperative. To avoid the need to create this custom imperative code that pushes the new configuration to the gitops-synced-repo, `argocd-image-updater`-project was created. `argocd-image-updater` is part of the _Argo Project_ and tries to tackle this challenge by moving the image-version-update-logic into a Kubernetes operator. Now the pipeline system should only worry about building and pushing images. I tried the `argocd-image-updater`, but experienced issues connecting to _Docker Hub_ (as explained here: link). The `argo-image-updater`-project has been going on for at least 2 years without reaching a stable state. So, I will not consider this a reliable option for the time being. A similar tool exists in the FluxCD ecosystem [[source]](https://fluxcd.io/flux/components/image/imageupdateautomations/). The Flux automated image updater may function as intended, but since we went with the ArgoCD ecosystem, it was not reasonable to try out the flux version in this limited time frame. 
+All the steps in the pipelines are so far imperative. To avoid the need to create this custom imperative code that pushes the new configuration to the gitops-synced-repo, `argocd-image-updater`-project was created. `argocd-image-updater` is part of the _Argo Project_ and tries to tackle this challenge by moving the image-version-update-logic into a Kubernetes operator. Now the pipeline system should only worry about building and pushing images. I tried the `argocd-image-updater`, but experienced issues connecting to _Docker Hub_ (as explained here: link). The `argo-image-updater`-project has been in development for at least 2 years without reaching a stable state. So, I will not consider this a reliable option for the time being. A similar tool exists in the FluxCD ecosystem [[s]](https://fluxcd.io/flux/components/image/imageupdateautomations/). The Flux automated image updater may work, but since we went with the ArgoCD ecosystem, it was not reasonable to try out the flux version in this limited time frame. 
 
 _To conclude:_ By switching your CI/CD system to a GitOps tool like ArgoCD we have not removed the need for deployment pipelines. Instead, we have only made the deployment process more complex.
 
-## 12.2. Additional costs
+## 11.2. Additional costs
 When using Kubernetes as a control plane, we are running an additional Kubernetes cluster, which is not free. Since this setup entails that we run a `core-cluster` (which does not provide any direct customer value), it will naturally mean that we spend more money on cloud resources than if we did not run a `core-cluster`.
 
 When running the demonstrated setup, more resources were required to run the `core-cluster` than the staging and production cluster combined. The ratio between the resources required by `core-cluster` and `app-cluster`s, depends on how much workload you run in the `app-clusters`. For my small demonstration application, the resources required by the `core-cluster` surpassed the other clusters combined, so if a smaller company/team would adopt this setup, the economic aspect may be relevant. 
 
 For the `core-cluster` to run properly in GCP without issues, 3 nodes of type "e2-medium" are needed. Monthly, this is $73,38 (24.46 · 3) [[source](https://www.economize.cloud/resources/gcp/pricing/e2/e2-medium)] for running just the `core-cluster`. The size of the machines needed will, of course, depend on how much shared infrastructure/how many control planes are running in the `core cluster`. 
 
-_To conclude:_ Running a `core cluster` is more costly than not running a core cluster. It may not be expensive to run a `core cluster`, but it is something to keep in mind.
+_To conclude:_ Running a `core cluster` is not for free. It may not be very expensive to run a `core cluster` on GCP, but it is something to keep in mind.
 
-## 12.3. Not _everything_ can be checked into code
+<!-- 
 
-<!-- idea not possible -->
-When creating this project, I wanted to have every configuration and resource declared in code, so I was spinning up the entire infrastructure from scratch with no prior setup.
+## Connection Issues
 
-This was not possible (at least on GCP), because IP-addresses are dynamically assigned to resources unless you reserve the IP-addresses. If you create a Kubernetes cluster on GCP, it will provision a cluster for you and assign it a random available IP-address. This doesn't work well with my setup since creating DNS-records with the GCP-crossplane-provider forces you to hardcode an IP-address into code. So, in this implementation with GCP I needed to reserve 3 IP-addresses. One for each cluster running in GCP.
+During the development and testing of the implementation presented in this paper i frequently experienced connecting issues to the `core cluster` when running on GCP and connecting issues to the ArgoCD server running in the `core cluster`.
 
-<img src="images/ip-addresses.png" width="800" />
+Connection issue to the cluster itself often happened when starting the `core cluster` on GCP. The cluster would at random times go into a state where it is says "updating" or "repairing" and therefore is unresponsive, when trying to reach it with `kubectl`.
+I tried different options like setting auto-repair to off, but I was never able to figure out why it happened at random times. It made the development process quite frustrating, because the cluster would be unresponsive for up to 15 minutes.
 
-> Figure X: xxxx
+Connecting issue to ArgoCD could happen both when running the `core cluster` locally and on GCP. The ArgoCD-server-pod would randomly crash loop for a few minutes and be completely unresponsive. In mean time i was not able to access ArgoCD's UI or access it through ArgoCD's CLI interface.
 
-Those 3 IP-addresses are hardcoded into the DNS records declared in manifests and in the Nginx-Controllers deployed by ArgoCD. Nginx needs to know which reserved IP-address to use, otherwise, it will just pick one at random.
+I could run ArgoCD in HA mode.
+ -->
 
-_To conclude:_ With GCP and Nginx, you need to reserve IP-addresses beforehand if you want the rest of the system to be fully declared as code. If the DNS records were not needed, then the reserved IP-addresses and hardcode IP-addresses were not needed, and _everything_ could be stored as code.
+## 11.3. No preview with Crossplane
 
-## 12.4. Single interface
+As i see it, one of the biggest drawbacks of using Crossplane for infrastructure-management compared to Terraform is that there is no option to preview a change before they are applied.
+With Terraform the developer can run `Terraform plan` to see a preview of the changes that will happen. This makes it possible to review the changes first.
+
+With Crossplane there is no such thing. Crossplane can not show a preview of the resources it is going to create/modify/delete. So the developers can only apply the manifests and hope that they did it correctly. This makes Crossplane risky to use for critical infrastructure. 
+
+I don't know if there will be a preview-feature or "dry-run"-feature (where it runs the new configuration but without changing anything) in Crossplane in the future. I don't know how it would work, but i imagine preview-features are inherently difficult to make in control planes, because it is not obvious when in the process a preview of the changes should be reviewed by a developer.
+
+This issue is also described on GitHub [[link]](https://github.com/crossplane/crossplane/issues/1805).
+
+_To conclude:_ Crossplane has not preview-feature for reviewing changes applied to the infrastdcture. This makes Crossplane risky to use for critical infrastructure and I would consider this the biggest drawback of using Crossplane for infrastructure-management.
+
+## 11.4. Single interface
 
 <!-- General issues with too many interface areas.  -->
 Running a business often requires many sets of logins to many different platforms and tools. Not all platforms/tools have a nice way of integrating with each other, so oftentimes, employees must juggle many different sets of credentials. Giving each employee the correct amount of access rights can be a hassle. Very strict security policies can result in slow development because you constantly need to request access to new resources should you need them. Very loose policies can result in security vulnerabilities because each employee has access to way more than they need (a violation of the Principle of least privilege [link](https://www.paloaltonetworks.com/cyberpedia/what-is-the-principle-of-least-privilege#:~:text=The%20principle%20of%20least%20privilege%20(PoLP)%20is%20an%20information%20security,to%20complete%20a%20required%20task.) ). 
@@ -900,15 +908,15 @@ _To conclude:_ By combining ArgoCD and Crossplane, you can create a workflow whe
 > The only problem here is that ArgoCD does not delete `Applications` <!-- verify when deleted from git. ArgoCD simply does not track what changed between each commit, meaning that it does know what has been created or deleted - ArgoCD only knows what the current state should be and nothing else. FluxCD is needed to solve this. FluxCD has the feature of _Garbage collection_ that detects when resources are removed from git and deletes them in the cluster [[source](https://fluxcd.io/flux/components/kustomize/kustomization/#garbage-collection)]. So with ArgoCD, this results in a manual task of deleting resources to which the developer may not have access to. 
  -->
 
-## 12.5. Platform Engineering
+## 11.5. Platform Engineering
 
-Platform engineering is gaining popularity in the last two years [[s](https://www.cncf.io/blog/2022/07/01/devops-vs-sre-vs-platform-engineering-the-gaps-might-be-smaller-than-you-think/)]. This topic is a main topic in itself, and not the focus of this paper, but I just quickly want to highlight how control planes like _crossplane_ can modernize your infrastructure, by embracing Platform Engineering and self-service. Crossplane has the concept of [Composite Resources](https://crossplane.io/docs/v1.9/concepts/composition.html#composite-resources), that works as an abstraction layer between the actual managed resource running on the cloud provider and the resource offered by the infrastructure team to the development teams. For example a developer then does not have to worry about where a database runs. The developer just requests a database in YAML, and the rest is handled by the abstraction created by the infrastructure/platform team. The abstraction becomes a platform for the developer to use - and they can self-service/provision infrastructure by using the provided abstraction. Developers will only interact directly with Kubernetes and not any other cloud platform/portal.
+Platform engineering is gaining popularity in the last two years [[s](https://www.cncf.io/blog/2022/07/01/devops-vs-sre-vs-platform-engineering-the-gaps-might-be-smaller-than-you-think/)]. This topic that deserve a paper in itself, and is therefore not the focus of this paper, but I just quickly want to highlight how control planes like _crossplane_ can modernize your infrastructure, by embracing Platform Engineering and self-servicing. Crossplane has the concept of [Composite Resources](https://crossplane.io/docs/v1.9/concepts/composition.html#composite-resources), that works as an abstraction layer between the actual managed resource running on the cloud provider and the resource offered by the infrastructure team to the development teams. For example a developer then does not have to worry about where a database runs. The developer just requests a database in YAML, and the rest is handled by the abstraction created by the infrastructure/platform team. The abstraction becomes a platform for the developer to use - and they can self-service/provision infrastructure by using the provided abstraction. Developers will only interact directly with Kubernetes and not any other cloud platform/portal.
 
 Kelsey Hightower from Google puts it like this: _"This conversation is less about Crossplane vs terraform. This is more about using Crossplane to build your own kind of api server, your own control plane that highlights and exposes only the resources and the properties that you want people in your organization using. This is a little bit different than saying: >>hey here is access to GCP. knock yourself out until we get the bill.<<"_ [[source]](https://youtu.be/UffM5Gr1m-0?t=843). In other words, the developers can view the platform team as the cloud provider instead of seeing GCP as their cloud provider. Everything the developers need is exposed through the abstraction provided by the platform team [[source]](https://youtu.be/UffM5Gr1m-0?t=769).
 
 _To conclude:_ Crossplane enables an infrastructure team to build an engineering platform, where the developers can self-service cloud resources provided by the infrastructure team. The infrastructure team has full control over what resources are available in the organisation and how they are configured behind the scene. 
 
-## 12.6. Pets to Cattle : Denne title passer bedre til eliminating state.
+## 11.6. Pets to Cattle : Denne title passer bedre til eliminating state.
 
 <!-- un-utilized resources -->
 One challenge companies can have when their developers have direct access to the cloud resources is that cloud services get created and forgotten about [[s]](https://amazic.com/dont-waste-your-money-on-unused-cloud-resources/). These resources may have been created accidentally or just used for a quick experiment. Other reasons could be that the resource is irrecoverable because the Terraform state was lost. The company ends up being charged for these un-utilized resources each month because it lacks the knowledge if the services are actually used or not, and the company is too scared of deleting the resources because they may be in use. Tools like Crossplane and ArgoCD can limit or mitigate this risk.
@@ -921,29 +929,29 @@ If you lose trust in the reproducibility of your infrastructure, you start treat
 
 _To conclude:_ Provisioning resources with Crossplane ensures visibility of which cloud resources exist in the organization. Combining it with ArgoCD will create visibility of which resources are not checked into git. Overall Crossplane and ArgoCD builds confidence in the reproducibility of the system, by creating visibility of what cloud resources and what software is provisioned/deployed from git.
 
-## 12.7. Streamlining your codebase
+## 11.7. Declaring the entire infrastructure
 
-The setup described in this paper is built using only 2 file types: YAML and _makefiles_. YAML is used for declaring the state of the entire infrastructure-configuration, while _makefiles_ are only for the initial bootstrapping. Everything is declared as _Infrastructure as Code_ and checked into git.
+The setup described in this paper is built using only 2 file types: YAML and _makefiles_. YAML is used for declaring the state of the entire infrastructure-configuration, while _makefiles_ are only for the initial bootstrapping. All resources required to run this implementing is checked is declared as _Infrastructure as Code_ and checked into git. 
 
 "Since Crossplane makes use of Kubernetes, it uses many of the same tools and processes, enabling more efficiency for users - without the need to learn and maintain entirely new tools" [[source](https://blog.upbound.io/outgrowing-terraform-and-migrating-to-crossplane/)]. This creates a highly streamlined infrastructure because it does not require knowledge about e.g., Terraform, Ansible, or multiple scripting languages. This is a huge benefit of this setup. 
 
-_To conclude:_ Building your infrastructure using control planes in Kubernetes (like Crossplane and ArgoCD) ensures your entire infrastructure is declared in YAML. Your infrastructure team can define the entire setup in YAML and does not need to know other tool specific languages. 
-
-<!-- Burde dette flyttes ned til evaluering?
+<!--
 Furthermore, it can be demanding and expensive to modernize a company to the newest technologies because the employees may not have the required skills and knowledge to utilize all the latest tools. Therefore it is beneficial to limit the number of languages and systems introduced in the company. Instead of needing to learn the syntax and mental model of many different tools, then it would be advantageous to only need the knowledge about Kubernetes. Having a single abstraction for everything. 
 -->
 
-## 12.8. Bootstrapping Problem
+_To conclude:_ Building your infrastructure using control planes in Kubernetes (like Crossplane and ArgoCD) ensures your entire infrastructure is declared in manifests. A infrastructure team can define the entire infrastructure in manifests and does not need to know any other tool specific languages.
 
-Every automatic process requires an initial manual task to start the process. This initial task/command cannot be declarative since a command is, by definition, imperative.
+## 11.8. Bootstrapping Problem
 
-In order to simplify the setup process as much as possible, we aim to make the bootstrapping as simple, clean, and error-safe as possible. The only bootstrapping done in this implementation is starting a cluster (used as `core-cluster`) and then installing ArgoCD on it. The rest of the setup is handled automatically by ArgoCD with a declarative/eventual consistency approach. 
+Every automatic process requires an initial command to start the process. This initial task/command cannot be declarative since a command is, by definition, imperative.
+
+In order to simplify the setup process as much as possible, I aimed to make the bootstrapping as simple, clean, and error-safe as possible. The only bootstrapping done in this implementation is starting a cluster (used as `core-cluster`) and then installing ArgoCD on it. The rest of the setup is handled automatically by ArgoCD with a declarative and eventual consistency approach. 
 
 The bootstrapping in this implementation does not touch logging, monitoring, ingress, Crossplane-related-stuff, Helm Charts, etc., which you could be forced to install sequentially through an imperative script. 
 
 _To conclude:_ We can't remove bootstrapping entirely - but we can try to reduce it as much as possible. I would argue that the bootstrapping done in this paper’s implementation is fairly minimal since it only does 2 steps. _1_: Spin up core-cluster (locally or on cloud provider), _2_: Install and setup ArgoCD.
 
-## 12.9. Multiple core-clusters
+## 11.9. Multiple core-clusters
 
 <!-- why would you? -->
 Just like you want a production cluster and a staging cluster of the app clusters so you can test software on the staging cluster before it goes into production - you probably also want to test software before it goes into production in the core cluster. E.g., how do you test a new version of Crossplane. It can be risky updating software on the core cluster because the app clusters depend on it. This would indicate that you probably also want a staging/testing/experimentation version of the core cluster, where you can test and experiment with software before it goes onto the stable version of the core cluster.
@@ -962,12 +970,19 @@ But the biggest drawback of running a complete copy of your entire infrastructur
 
 _To conclude:_ It is difficult to test/experiment with the core cluster. Depending on how you do it, running two at the same time will either create race conditions or duplicate your entire infrastructure which may be unfeasible or unmaintainable depending on the size and budget of your organization. There is no good solution for this and I consider this one of the biggest drawbacks of running a `core-cluster` for managing the rest of you infrastructure. 
 
-## 12.10. Maturity level
+## 11.10. Maturity level
 
 Currently, the biggest limitation of using Crossplane is the lack of providers and the feature-set each provider offers.
 
 <!-- rely on providers -->
 When using Kubernetes as a universal control plane for all of your infrastructure, you rely heavily on the stability and flexibility of the controllers made by big cooperations or open-source communities. When you use ArgoCD, you put all your faith in that its control plane correctly deploys your services and does not randomly delete arbitrary pods. When you use Crossplane, you rely on the controller/providers to correctly provision the requested resource and manage their life cycle. As a user of these control planes, it is out of your hands, and you rely solely on the tools. This is the same limitation that Terraform has. Terraform is only as good as the providers that integrate with Terraform.
+
+
+<!--
+
+"Using control planes means relinquishing control. Therefore seasoned SRE teams may feel a reluctance in trusting the control plane." [[s]](https://www.eficode.com/blog/outgrowing-terraform-and-adopting-control-planes)
+
+ -->
 
 Both Crossplane and ArgoCD is marked with maturity level Incubating, which is meant for "Early Adopters" [[s](https://www.cncf.io/projects/)]. So, it is not expected that the tools give an flawless experience.
 
@@ -975,13 +990,15 @@ Both Crossplane and ArgoCD is marked with maturity level Incubating, which is me
 
 - Digital Ocean's Crossplane provider (v0.1.0) cannot delete resources on their platform (Issue is reported here [[s](https://github.com/crossplane-contrib/provider-digitalocean/issues/55)]). This means that Crossplane can only be used to spin up, e.g., databases and Kubernetes clusters – but not delete them afterward. This makes the provider nearly useless because you cannot control the full life cycle of resources. This will probably be fixed in the near future. However, this is a good example of cloud providers not being mature and ready for control planes like crossplane.
 
-- ArgoCD cannot natively deploy resources when the generated YAML-files get too large (Issue is reported here [[s](https://github.com/argoproj/argo-cd/issues/8128)]). This is completely out of your hands. So, if you want to deploy certain helm-charts that generate long YAML-files, then you instead have to find a custom workaround online or deploy it manually. This can be quite painful since if ArgoCD cannot deploy _every single resource_ declared in your infrastructure you must introduce custom logic for edge cases, which doesn't scale well. 
+- ArgoCD cannot natively deploy resources when the generated manifests get too large (Issue is reported here [[s](https://github.com/argoproj/argo-cd/issues/8128)]). This is completely out of your hands. So, if you want to deploy certain helm-charts that generate long manifests, then you instead have to find a custom workaround online or deploy it manually. This can be quite painful since if ArgoCD cannot deploy _every single resource_ declared in your infrastructure you must introduce custom logic for edge cases, which doesn't scale well. 
 
-- ArgoCD cannot connect to an external cluster based on data stored as a secret in Kubernetes (described here [[s](https://github.com/argoproj/argo-cd/issues/4651)]). Argo can only connect to external clusters by running `argocd add cluster <kubeconfig-context-name>` on your machine with a kubeconfig available. This goes against the idea of declaring everything in YAML by forcing the user to call a shell command imperatively (described [[here](https://github.com/argoproj/argo-cd/issues/4651)]).
+- ArgoCD cannot connect to an external cluster based on data stored as a secret in Kubernetes (described here [[s](https://github.com/argoproj/argo-cd/issues/4651)]). ArgoCD can only connect to external clusters by running `argocd add cluster <kubeconfig-context>` on a machine with a kubeconfig available. This goes against the idea of declaring everything in manifests by forcing the user to call a shell command imperatively (described [[here](https://github.com/argoproj/argo-cd/issues/4651)]).
+
+- The ArgoCD Server Pod would randomly crash loop for a few minutes and be completely unresponsive. In mean time i was not able to access ArgoCD's UI or access it through ArgoCD's CLI interface, making it impossible to manage the deployment of my applications. This happened mostly when the `core cluster` was hosted on GCP.
 
 _To conclude:_ Both ArgoCD and Crossplane are good tools with strong support from the community and industry, but they are not flawless, so one should expect to experience small issue with both of them, that may be fixed/handled in the future. Especially a user should pick their Crossplane providers with care because some of them are in a very early stage and are not production ready.
 
-## 12.11. Eliminating state
+## 11.11. Eliminating state
 
 One of the biggest selling points moving away from Terraform is the state you must manage, so if a control plane like Crossplane has not improved that process, then we have not gained much.
 
@@ -1002,7 +1019,10 @@ _To conclude:_ The only thing blocking the entire infrastructure in this impleme
 Dette skal stå i discussion. 
 <!-- general Crossplane stuff -->
 This paper is not trying to argue that Crossplane is a perfect tool but rather that Crossplane is just an example of a tool that can be used to manage external resources from Kubernetes.
-# 13. Conclusion
+
+
+
+# 12. Conclusion
 
 <!-- The golden hammer approach -->
 
@@ -1050,7 +1070,7 @@ Main Cons:
 
 
 
-# 14. References
+# 13. References
 <!-- 
 
 Why git?
