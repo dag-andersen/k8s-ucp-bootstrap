@@ -115,7 +115,7 @@ This explains the concept of control planes and how to build kubernetes as an un
   - [8. From Terraform to control planes.](#8-from-terraform-to-control-planes)
 - [9. Demonstration Application](#9-demonstration-application)
 - [10. Implementation](#10-implementation)
-  - [10.1. Technologies and tools used in this implementation](#101-technologies-and-tools-used-in-this-implementation)
+  - [10.1. Technologies and tools used](#101-technologies-and-tools-used)
   - [10.2. ArgoCD and Crossplane together](#102-argocd-and-crossplane-together)
   - [10.3. Managing internal state with ArgoCD](#103-managing-internal-state-with-argocd)
     - [10.3.1. Eventual consistency](#1031-eventual-consistency)
@@ -352,7 +352,7 @@ The main design idea of this implementation is to have a single cluster that wor
 
 Only the infrastructure teams are supposed to interact with `core cluster` directly - while the application developers are supposed to only care about getting their workload running on the `app cluster`s. The design is visualized in Figure X.
 
-## 10.1. Technologies and tools used in this implementation
+## 10.1. Technologies and tools used
 
 **Amazon Web Services**
 AWS was chosen as the cloud provider for a simple managed cloud database. AWS is one of the officially supported providers for Crossplane [[s]](https://crossplane.io/docs/v1.10/reference/configure.html). Both Azure or GCP would be a would be a potential alternatives to AWS in this implementation.
@@ -441,11 +441,14 @@ As seen on Figure X, besides Crossplane and Quote App, ArgoCD also installed oth
 **Nginx**
 In order to call the _demonstration application_'s frontend from outside Kubernetes, we need to set up ingress. Nginx is an ingress controller that acts as a reverse proxy and load-balancer and handles all external traffic into the cluster. A cluster needs an ingress controller in order to call the endpoints inside Kubernetes from outside Kubernetes.
 
+**ExternalDNS**
+ExternalDNS synchronizes exposed Kubernetes Services and Ingresses with DNS providers [[s]](https://github.com/kubernetes-sigs/external-dns/tree/master/charts/external-dns). In order to automatically create DNS records in GCP, when new Ingress objects are created in GKE ExternalDNS needs to be set up and deployed in the Cluster [[s]](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/gke.md).
+
 **Prometheus and Grafana**
 Prometheus and Grafana is a open-source monitoring stack. This stack is not strictly needed to run the Quote App, but it is used to resemble a realistic infrastructure setup seen in a company. It is installed on both the core clusters and the app clusters, so it is possible to observe e.g. resource usage of all clusters.
 
 **Manifest-Syncer**
-This is custom service i developed to sync secrets between the `core cluster` and the `app clusters`. This service will be described in detail in section: XXXX.
+`manifest-syncer` is custom service i developed to sync secrets between the `core cluster` and the `app clusters`. This service will be described in detail in section: XXXX.
 
 ### 10.3.1. Eventual consistency
 
@@ -459,7 +462,14 @@ Applying Kubernetes resources with ArgoCD works the same way. If ArgoCD can't de
 
 ### 10.3.2. Repository structure
 
-The structure for my implementation of a universal control plane is split up into 3 repositories: One ArgoCD synced repository for the `core-cluster`, a second ArgoCD synced repository for syncing with `app-cluster`, and finally, a general repository with code and scripts for bootstrapping the system. The bootstrapping repository mainly contain scripts for starting `core` cluster. The GitOps synced repositories do not contain anything other than manifests synced with ArgoCD.
+The structure for my implementation of a universal control plane is split up into 3 repositories: One ArgoCD synced repository for the `core-cluster`, a second ArgoCD synced repository for syncing with `app-cluster`, and finally, a general repository with code and scripts for bootstrapping the system.
+
+The repositories can be found here:
+- k8s-ucp-bootstrap: https://github.com/dag-andersen/k8s-ucp-bootstrap
+- k8s-ucp-core-gitops: https://github.com/dag-andersen/k8s-ucp-core-gitops
+- k8s-ucp-app-gitops: https://github.com/dag-andersen/k8s-ucp-app-gitops
+
+The bootstrapping repository mainly contain scripts for starting `core` cluster. The GitOps synced repositories do not contain anything other than manifests synced with ArgoCD.
 
 ```
 root
@@ -483,7 +493,10 @@ root
 
 The main point here is that there are many ways to structure your GitOps synced repositories, and it all depends on what kind of needs you have in your organization. 
 
-The folder structure of the `Core Cluster` and `App Cluster` can be seen on Figure X. Most resources that are applied by ArgoCD are structured/built with Kustomize using the [base-overlay-pattern](https://github.com/kubernetes-sigs/kustomize/blob/53cc76fe43c91493d093c2832cc61425aa2972e1/README.md#2-create-variants-using-overlays), which is why is why all `base` and `overlays` exist. 
+The folder structure of the `Core Cluster` and `App Cluster` can be seen on Figure X. Most resources that are applied by ArgoCD are structured/built with Kustomize using the [base-overlay-pattern](https://github.com/kubernetes-sigs/kustomize/blob/53cc76fe43c91493d093c2832cc61425aa2972e1/README.md#2-create-variants-using-overlays), which is why is why all `base` and `overlays` exist.
+
+<!-- maybe delete? -->
+I use _App Of Apps Pattern_ [[s]](https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-bootstrapping/#app-of-apps-pattern) for bootstrapping the ArgoCD Applications, which means I have a single ArgoCD Application that creates all the other ArgoCD applications. This makes it easier to deploy, because i only have to deploy one bootstrapping application. This ArgoCD Application is named `kube-applications` in the code.
 
 <table>
 <tr>
@@ -565,11 +578,18 @@ k8s-ucp-core-gitops (repository root)
 
 In my implementation of an universal control plane, I use Crossplane for managing external resources (e.g databases on AWS and Kubernetes clusters on GCP).
 
+In order to authenticate with the cloud provider API, Crossplane need to have access to credentials. In this case it would be an IAM User for AWS and a Service Account for GCP [[s]](https://github.com/crossplane/crossplane/blob/master/docs/concepts/providers.md#configuring-providers).
 
-In order to authenticate with the cloud provider API, the provider controllers need to have access to credentials. In this case it would be an IAM User for AWS to create a database, a Service Account for GCP or a Service Principal for Azure. Every provider has a type called ProviderConfig that has information about how to authenticate to the provider API.
+I inject the credentials into the cluster as Secrets by running:
+```
+$ kubectl create secret generic gcp-creds	-n crossplane-system	--from-file creds=../creds/creds-gcp.json
+$ kubectl create secret generic aws-creds	-n crossplane-system	--from-file creds=../creds/creds-aws.conf
+```
+where `../creds/creds-gcp.json` and `../creds/creds-aws.conf` points to the credentials stored on my local machine.  
 
+The crossplane provider is specified in a manifest of type `Provider`, while the credentials are referenced in a manifest of type `ProviderConfig`. When these are deployed to the cluster, I can start provisioning resources. 
 
-As an example, to provision a database resource on AWS, a I needs to create a `Provider` (specifying which provider to use), `ProviderConfig` (where to get the credentials for the provider), and a `RDSInstance` (specifying the database properties) and apply it to a Kubernetes cluster with Crossplane installed. A `Provider` and `ProviderConfig` is needed for each crossplane-provider needed in the system [[s]](https://crossplane.io/docs/v1.10/concepts/providers.html).
+As an example, to provision a database resource on AWS, a I needs to create a `Provider` (specifying AWS), `ProviderConfig` (specifying to use the `aws-creds`-secret as authentication), and a `RDSInstance` (specifying the database properties) and apply it to a Kubernetes cluster with Crossplane installed [[s]](https://crossplane.io/docs/v1.10/concepts/providers.html).
 
 <table>
 <tr>
@@ -630,17 +650,12 @@ spec:
 </tr>
 </table>
 
-<!-- These manifests are read by a _controller_ (which is provided by the Crossplane-provider as a _helm-chart_). As a developer, you do not care how it is implemented behind the scene; you just know that the controller continuously tries to make sure the desired state is upheld.  -->
-
-The controller will read the above `RDSInstance` and check that such an instance exists on the AWS account referenced in the `ProviderConfig`'s `credentials`-section. This is how Crossplane is able to create DNS Records, VPCs, Subnets, Node Pools, Kubernetes Clusters, and databases needed in the demonstration setup to run the Quote App. All the manifests for resources needed in GCP can be found in `/gcp-clusters` in the `core-cluster-argo-repo`-repository.
-
-<!-- Depending on which cloud provider you are able to create, most cloud resources are offered by that cloud provider. The reason only "most" resources are offered is that Crossplane and its providers are still in development, and not all resources are implemented yet. < I need an example here > -->
+The AWS crossplane provider will read the above `RDSInstance` and check that such an instance exists on the AWS account. This is how Crossplane is able to create VPCs, Subnets, Node Pools, Kubernetes Clusters, and databases needed in the demonstration setup to run the Quote App. All the manifests for resources needed in GCP can be found in `/gcp-clusters`[[s]](https://github.com/dag-andersen/k8s-ucp-core-gitops/tree/main/gcp-clusters) in the `core-cluster-argo-repo`-repository.
 
 
 <!-- new providers - discussion?-->
-Crossplane is built to be highly extendable (just like Terraform), making it easy to create new providers. Currently, not many providers exist, but I could imagine for example Datadog could create a Crossplane-provider (equal to their Terraform provider integration), where the user could declared their Datadog dashboard in YAML and apply it to the cluster. With Terraform, the would have to store the Datadog dashboard terraform in for example a bucket bucket on a cloud provider. This works fine in practice, but one could argue that we don't need to store that state in a bucket. Instead, we could simply store the declared state directly in Kubernetes together with the services you are monitoring. 
+Crossplane is built to be highly extendable (just like Terraform), making it easy to create new providers. Currently, not many providers exist, but I could imagine for example Datadog could create a Crossplane-provider (equal to their Terraform provider integration), where the user could declared their Datadog dashboard in manifests and apply it to the cluster. With Terraform, the would have to store the Datadog dashboard terraform in for example a bucket bucket on a cloud provider. This works fine in practice, but one could argue that we don't need to store that state in a bucket. Instead, we could simply store the declared state directly in Kubernetes together with the services you are monitoring. 
 
-----
 
 <!-- One instance or multiple instances of crossplane? -->
 Just like ArgoCD, you can either install Crossplane on each cluster or install it in a shared cluster. Just like with ArgoCD, it provides much better visibility only to have a single instance running, making it easier to see which external resources are running outside Kubernetes.
@@ -658,16 +673,15 @@ When Crossplane creates a resource (e.g., Kubernetes cluster or database) on a c
 
 The challenge is also described as an issue on the `crossplane-contrib`-_GitHub Organisation_ [[source](https://github.com/crossplane-contrib/provider-argocd/issues/13)], and currently, no easy solution exists.
 
-This shows how popular tools like ArgoCD and Crossplane do not necessarily integrate well together natively. These small gaps can easily occur when we are using many different tools from the Kubernetes ecosystem that were not necessarily meant to be used in conjunction with each other and do not have a native integration between them. As an infrastructure team, you may have to close these gaps yourself if you can’t find an off-the-shelf component online (e.g GitHub) that solves your problem. 
-Many of these small gaps can be solved with a few scripts, a cronjob running a script, or a small standalone service.
+This shows how popular tools like ArgoCD and Crossplane do not necessarily integrate well together natively. These small gaps can easily occur when we are using many different tools from the Kubernetes ecosystem that were not necessarily meant to be used in conjunction with each other and do not have a native integration between them. Infrastructure may have to close these gaps themselves if they can’t find an off-the-shelf component online (e.g GitHub) that solves your problem. Many of these small gaps can be solved with a few scripts, a cronjob running a script, or a small standalone service.
 
 There are a few ways of overcoming this secret-distribution challenge. The most naive one would be to create a manual step where the infrastructure team needs to somehow copy the credentials to the production cluster when a new cluster is created.
+For example running this line of code for each secret they want copied every time a new cluster is created: `kubectl get secret my-secret-name --context core-cluster --export -o yaml | kubectl apply --context new-app-cluster -f -`.
 
-Another way of doing this is using some kind of secret-vault (like HashiCorp Vault) where the credentials are stored during the creation of the database. Each cloud environment can then read the credentials directly from the vault when needed. This may be considered best practice currently, and it comes with some great benefits (which are beyond the scope of this paper) - but it nonetheless introduces even more tools/concepts to the infrastructure, which may put even more workload on a infrastructure team.
+Another way of doing this is using some kind of secret-vault (like HashiCorp Vault[[s]](https://www.vaultproject.io/)) where the credentials are stored at the creation of the database. Each cloud environment can then read the credentials directly from the vault when needed. This may be considered a better solution and may come with some great benefits (which are beyond the scope of this paper) - but it nonetheless introduces even more tools/concepts to the infrastructure, which may put even more workload on a infrastructure team.
 
-Therefore I have created a much simpler solution.
-
-As usual, there are many ways of closing a gap, but we need to keep in mind that we want a declarative approach, so we want the distribution to happen eventually and not at a specific step in the rollout of a new cluster or new secret. Therefore, I have implemented a service named `manifest-syncer` that runs as a container inside Kubernetes. The purpose of the `manifest-syncer` is to mirror secrets from its host cluster to target clusters. The `manifest-syncer` is simple deployed to the cluster with default configuration, and is controlled through `CustomResourceDefinitions`. If a developer wants a Secret to be automatically mirrored/copied from the core cluster to e.g. the production cluster, he/she just creates a manifest describing exactly that. An example of such a manifest can be seen on Figure X. In this example, at is specified that Secrets named `gcp-database-conn`, in namespace `crossplane-system`, should be copied to namespace `default`, on the cluster named `gcp-cluster-prod`.
+Therefore I have created a much simpler automated solution.
+I have created a fully declarative solution with eventual consistency. I have implemented a service named `manifest-syncer` that runs as a container inside Kubernetes. The purpose of the `manifest-syncer` is to mirror secrets from its host cluster to target clusters. The `manifest-syncer` is simply deployed to the cluster with default configuration, and is controlled through `CustomResourceDefinitions`. If a developer wants a Secret to be automatically mirrored/copied from the `core cluster` to e.g. the production cluster, he/she just creates a manifest describing exactly that and apply it to the `core cluster`. An example of such a manifest can be seen on Figure X. In this example, at is specified that Secrets named `gcp-database-conn`, in namespace `crossplane-system`, should be copied to namespace `default`, on the cluster named `gcp-cluster-prod`.
 
 ```yaml
 apiVersion: dagandersen.com/v1
@@ -689,9 +703,9 @@ Note: `argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true` is add
 
 ### 10.5.1. Getting access to the App Clusters
 
-In order for the `manifest-syncer` to have access to the App Clusters, it needs a kubeconfig. We do not want to provide or generate this kubeconfig manually each time we create a new cluster. Instead, we want the `manifest-syncer` to fix this automatically without having to change other services. 
+In order for the `manifest-syncer` to have access to the App Clusters, it needs a kubeconfig. I do not want to provide or generate this kubeconfig manually each time I create a new cluster. Instead, I want the `manifest-syncer` to fix this automatically without having to change other services. 
 
-The `manifest-syncer` automatically scans its host cluster for secrets generated by Crossplane with a name that contains: `-k8s-`. This alone is not enough because it only gives read access to the cluster. To gain write access, it scans its host cluster for secrets generated by ArgoCD with label: `argocd.argoproj.io/secret-type=cluster` and then retrieves ArgoCD's access token to the App Clusters. The manifest `manifest-syncer` combines the kubeconfig and access token and gets access to the app clusters. The `manifest-syncer` repeats this process every 10 second to continuously detect when new app clusters are created.
+The `manifest-syncer` automatically scans its host cluster for secrets generated by Crossplane with a name that contains: `-k8s-`. This alone is not enough because it only gives read access to the cluster. To gain write access, it scans its host cluster for secrets generated by ArgoCD with label: `argocd.argoproj.io/secret-type=cluster` and then retrieves ArgoCD's access token to the `App Clusters`. The `manifest-syncer` combines the kubeconfig and access token and gets access to the `app clusters`. The `manifest-syncer` repeats this process every 10 second to continuously detect when new `app clusters` are created.
 
 <img src="images/drawings_manifest-syncer-k8s.png" width="750" />
 
@@ -705,14 +719,14 @@ One could argue that it is bad practice to build your own small services like th
 
 Continuing from the _Demonstration Application_-section, we now have all the pieces to run the Quote App in a multi-environment spanning across multiple cloud providers.
 
-For demonstration purposes, the Kubernetes clusters will run in GCP while the managed database will run in AWS to show that this kind of setup works across different cloud providers. On GCP, there will be two environments running: _production_ and _staging_. Each environment runs in its own VPN (and subnetwork) and has its own subdomain on GCP. Both environments can connect to the database running on AWS. This architecture is for demonstration purposes. This paper is not arguing that this is good software architecture.
+For demonstration purposes, the Kubernetes clusters will run in GCP while the managed database will run in AWS to show that this kind of setup works across different cloud providers. On GCP, there will be two environments running: _production_ and _staging_. Each environment runs in its own VPN (and subnetwork) and has its own subdomain on GCP. Both environments can connect to the database running on AWS.
 
 <!-- Crossplane resources print -->
-The cloud resources needed for this setup are provisioned through Crossplane and can be seen in Figure X. Crossplane does not have a UI, but you can interact with it with `kubectl` like any other Kubernetes resource. Running `kubectl get managed` will print a list of all the resources managed by crossplane together with extra metadata. An example of metadata would be the column `SYNCED` that shows if the resource actual state is in sync with declared state in Kubernetes.
+The cloud resources needed for this setup are provisioned through Crossplane and can be seen in Figure X. Crossplane does not have a UI, but you can interact with it with `kubectl` like any other Kubernetes resource. Running `kubectl get managed` will print a list of all the resources managed by crossplane together with extra metadata. An example of metadata would be the column `SYNCED` that shows if the resource actual state in the cloud provider is in sync with declared state in Kubernetes.
 
-<img src="images/crossplane-print-2.png" width="1000" />
+<img src="images/crossplane-print-4.png" width="1000" />
 
-Figure X shows two VPCs (`network.compute.gcp`), two subnets (`subnetwork.compute.gcp`), six DNS records (`resourcerecordset.dns.gcp`), two k8s clusters (`cluster.container.gcp`), and two node pools (`nodepool.container.gcp`) are running on GCP, and a single database instance (`rdsinstance.database.aws`) is running on AWS.
+Figure X shows two VPCs (`network.compute.gcp`), two subnets (`subnetwork.compute.gcp`), two k8s clusters (`cluster.container.gcp`), and two node pools (`nodepool.container.gcp`) are running on GCP, and a single database instance (`rdsinstance.database.aws`) is running on AWS.
 
 Combining the objects we saw in Figure X (in the _Demonstration Application_-section) and the Crossplane cloud resources in Figure X, we get the following infrastructure and application architecture:
 
@@ -721,7 +735,7 @@ Combining the objects we saw in Figure X (in the _Demonstration Application_-sec
 Figure X: This illustration shows how the _Demonstration Application_ (described in _Demonstration Application_-section) runs on GCP and accesses a database in AWS. All elements with the Crossplane logo next to it are objects/resources provisioned by Crossplane, while all elements with the ArgoCD logo next to it are objects/resources deployed and managed by ArgoCD. The text written in _Italic_ is the name of the Crossplane-object managed in Kubernetes. The names match the objects printed in Figure X. 
 
 <!-- Scaling -->
-The production and staging environment run completely separately on GCP. This design makes it possible to scale the number of workload-environments linearly through the `core-cluster` and _IaC_ based _GitOps_. 
+The production and staging environment run completely separately on GCP. This design makes it possible to scale the number of app-clusters/workload-environments linearly from the `core-cluster`. 
 
 <!-- Universal control Den her virker underlig.-->
 All the resources and objects seen in Figure X are managed by ArgoCD and Crossplane, which is running in the Core cluster, acting as a universal control plane for provisioning infrastructure and deploying workloads. 
@@ -733,7 +747,6 @@ The following section describes how to use this implementation of a universal co
 So far, this paper has explained what control planes are and how one can build an entire infrastructure setup only using Kubernetes. 
 
 The _implementation_-section described how one instance of a system using Kubernetes and control planes could look, but we still need to cover how we use the setup after creation. The setup/system needs to be maintainable and modifiable over time. 
-
 
 There are many methods and strategies when it comes to the deployment of software. This paper gives an example of how to use ArgoCD together with Crossplane, but others may choose to structure their code differently. For example if a user chooses to use FluxCD (instead of ArgoCD) and Google's Config Connector, the optimal structure may look very different. 
 
@@ -788,7 +801,7 @@ _So, how would the workflow be if an infrastructure engineer wants to spin up th
 3. Add your Cloud Provider and Git-repo credentials to the `./creds/`-folder.
 4. Run `make start` in the root to start the interactive cli for choosing what resources to create.
 
-<img src="images/make1.png" width="600" />
+<img src="images/make-1.png" width="600" />
 
 This interactive-CLI can be replaced with something else e.g., it would be possible to replace the CLI with a simple UI if that is preferred. 
 
@@ -797,7 +810,7 @@ Other options can be added relatively easily by adding scripts to the bootstrap-
 
 > choosing `local` is preferred when developing since it takes around 10 minutes to spin up a GCP cluster, and it only takes 20 sec to spin up a local kind cluster.
 
-<img src="images/make2.png" width="600" />
+<img src="images/make-2.png" width="600" />
 
 Secondly, you specify what `App clusters` you want and if you want to spin up the demonstration application. If you choose `skip` only the `core cluster` will be started. You can run the `make start` command as many times as you want. It will detect that you already have a cluster running and ask if you want to delete the currently running version.
 
@@ -910,7 +923,7 @@ _To conclude:_ Provisioning resources with Crossplane ensures visibility of whic
 
 ## 12.7. Streamlining your codebase
 
-The setup described in this paper is built using only 2 file types: YAML and _makefiles_. YAML is used for declaring the state of the entire infrastructure-configuration, while _makefiles_ are only for the initial bootstrapping. Everything is declared as _Infrastructure as Code_ and checked into git (_GitOps_).
+The setup described in this paper is built using only 2 file types: YAML and _makefiles_. YAML is used for declaring the state of the entire infrastructure-configuration, while _makefiles_ are only for the initial bootstrapping. Everything is declared as _Infrastructure as Code_ and checked into git.
 
 "Since Crossplane makes use of Kubernetes, it uses many of the same tools and processes, enabling more efficiency for users - without the need to learn and maintain entirely new tools" [[source](https://blog.upbound.io/outgrowing-terraform-and-migrating-to-crossplane/)]. This creates a highly streamlined infrastructure because it does not require knowledge about e.g., Terraform, Ansible, or multiple scripting languages. This is a huge benefit of this setup. 
 
@@ -970,7 +983,7 @@ _To conclude:_ Both ArgoCD and Crossplane are good tools with strong support fro
 
 ## 12.11. Eliminating state
 
-One of the biggest selling points moving away from Terraform is the state you must manage, so if a control plane like Crossplane has not improved that process, then we have not gained much. 
+One of the biggest selling points moving away from Terraform is the state you must manage, so if a control plane like Crossplane has not improved that process, then we have not gained much.
 
 With Terraform, you store a state each time you provision any cloud resource. The resources must be stored in a shared place, and you must make sure it is up to date and that only the right people have access to it. Crossplane doesn't handle state in the same way. Terraform looks at the Terraform state, your local code, and what is currently running in the cloud. <!-- check med Zander --> Crossplane only looks at what is currently running in the cloud. If the requested resource does not exist, Crossplane will create it. If the requested resource already exists, it will not create anything. This works well with simple resources like DNS-records on GCP, but if you look at resources that need connection details, like managed databases and Kubernetes clusters, it gets more interesting! What the Crossplane provider does with each resource, if it already exists, depends on the individual resource.
 
