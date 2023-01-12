@@ -1,11 +1,11 @@
 # Colors
 
-echo-header		=xargs -0 gum style --foreground 120 --border-foreground 120 --border double --align center --width 60 --padding "1 1"
-echo-info		=xargs -0 gum style --foreground 110 --border-foreground 110 --border double --align center --width 60
-echo-question	=xargs -0 gum style --foreground 212 --border-foreground 212 --border double --align center --width 60
-echo-answer		=xargs -0 gum style --foreground 050 --border-foreground 050 --border double --align center --width 60
-echo-red		=xargs -0 gum style --foreground 001 --border-foreground 001 --border double --align center --width 60
-echo-green		=xargs -0 gum style --foreground 120 --border-foreground 120 --border double --align center --width 60 
+echo-header		=gum style --foreground 120 --border-foreground 120 --border double --align center --width 60 --padding "1 1"
+echo-info		=gum style --foreground 110 --border-foreground 110 --border double --align center --width 60
+echo-question	=gum style --foreground 212 --border-foreground 212 --border double --align center --width 60
+echo-answer		=gum style --foreground 050 --border-foreground 050 --border double --align center --width 60
+echo-red		=gum style --foreground 001 --border-foreground 001 --border double --align center --width 60
+echo-green		=gum style --foreground 120 --border-foreground 120 --border double --align center --width 60
 
 spin			=gum spin --title
 
@@ -14,11 +14,12 @@ skip			= if [[ "$(SKIP)" == "true" ]]; then ! gum confirm "skip?" || exit 0; fi 
 pre				= $(step) $(skip)
 
 test-colors: 
-	@printf test | $(echo-green)
+	@printf test | $(echo-header)
 	@printf test | $(echo-info)
-	@printf test | $(echo-red)
 	@printf test | $(echo-question)
 	@printf test | $(echo-answer)
+	@printf test | $(echo-red)
+	@printf test | $(echo-green)
 
 # Tools
 
@@ -134,7 +135,7 @@ apps-bootstrap:
 # COMMANDS 
 
 start:
-	@printf 'Utilizing Kubernetes as an universal control plane!' | $(echo-header)
+	@printf 'Utilizing Kubernetes as a universal control plane!' | $(echo-header)
 	@printf 'Where should the core cluster be created?' | $(echo-question)
 	@CORE=$$(gum choose "local" "gcp") && \
 	printf "Answer: \n$${CORE}" | $(echo-answer) && \
