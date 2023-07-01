@@ -1,12 +1,16 @@
 # k8s-ucp-bootstrap
 
+![](docs/images/drawings_control-plane.png)
+
 # How to run
 
 ## Pre-requisites  
 
-Follow [Crossplane's tutorial](https://crossplane.io/docs/v1.8/getting-started/install-configure.html) on how to create credentials for **AWS** and **GCP**
+- Run Docker with 12GB of RAM and 6 CPUs
 - Store the AWS Credentials in: `repo-root/creds/creds-aws.conf`
 - Store the GCP Credentials in: `repo-root/creds/creds-gcp.json`
+
+Follow [Crossplane's tutorial](https://crossplane.io/docs/v1.8/getting-started/install-configure.html) on how to create credentials for **AWS** and **GCP**
 
 ## Start
 ```bash

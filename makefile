@@ -75,14 +75,11 @@ get-prometheus-creds:
 
 ### Argo Utils
 
-sync-apps-%:
-	@$(MAKE) -C ./core-cluster	sync-apps-$*
-
 sync-apps:
 	@printf "Now Syncing: \n$$(echo $${APPS} | tr " " "\n")" | $(echo-info)
 	@argocd app sync $${APPS} --async || true
 	@printf "Waiting sync" | $(echo-info)
-	@while ! argocd app wait $${APPS} --timeout 30 > /dev/null; do echo "Waiting for apps [$${APPS}] to be ready" && make sleep-20 && argocd app sync $${APPS} --async || true; done
+	@while ! argocd app wait $${APPS} --sync --timeout 30 > /dev/null; do echo "Waiting for apps [$${APPS}] to be ready" && make sleep-20 && argocd app sync $${APPS} --async || true; done
 	@printf "Synced" | $(echo-info)
 
 delete-app-%:
@@ -151,7 +148,8 @@ start-internal:
 	@if [[ "$(CORE)" == "gcp" ]]; then\
 		$(MAKE) -C ./gcloud	cluster-exists cluster-name=core-cluster &>/dev/null && gum confirm "Use existing cluster?" || (make start-core-gcp && make sleep-5 && make onePassword);\
 	fi
-	@APPS="application-bootstrap-prod application-bootstrap-stage infrastructure-bootstrap crossplane gcp-provider aws-provider manifest-syncer" && \
+# Removed aws-provider and do-provider from APPS
+	@APPS="application-bootstrap-prod application-bootstrap-stage infrastructure-bootstrap crossplane gcp-provider manifest-syncer" && \
 	if [[ "$(OPTIONS)" == *"prod-cluster"* ]];			then APPS="$${APPS} gcp-cluster-prod"; fi && \
 	if [[ "$(OPTIONS)" == *"stage-cluster"* ]];			then APPS="$${APPS} gcp-cluster-stage"; fi && \
 	if [[ "$(OPTIONS)" == *"quote-app-with-gcp-database"* ]];	then APPS="$${APPS} gcp-database"; fi && \

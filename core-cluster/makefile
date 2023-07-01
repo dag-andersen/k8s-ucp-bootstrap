@@ -7,12 +7,6 @@ context:
 	@kubectl config use-context $(cluster-name)
 	@echo
 
-sync-app-%: context
-	argocd app wait crossplane gcp-provider --sync
-	argocd app sync $*
-	argocd app wait $* --sync
-	@echo
-
 delete-app-%:
 	argocd app manifests $* | kubectl delete --ignore-not-found=true -f -
 
